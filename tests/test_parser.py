@@ -231,7 +231,7 @@ class TestParseSections:
     def test_break_inside_section(self):
         song = parse("{start_of_verse}\nline\n\nline\n{end_of_verse}")
         verse = song.body[0]
-        assert any(isinstance(l, BreakLine) for l in verse.lines)
+        assert any(isinstance(line, BreakLine) for line in verse.lines)
 
     def test_tab_creates_tab_instance(self):
         song = parse("{start_of_tab}")

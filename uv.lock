@@ -135,8 +135,8 @@ wheels = [
 ]
 
 [[package]]
-name = "chordpro"
-version = "0.1.0"
+name = "chordpro-renderer"
+version = "1.0.4"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -157,7 +157,7 @@ pdf = [
 [package.dev-dependencies]
 dev = [
     { name = "black" },
-    { name = "chordpro", extra = ["babel", "flask", "pdf"] },
+    { name = "chordpro-renderer", extra = ["babel", "flask", "pdf"] },
     { name = "pylint" },
     { name = "pyright" },
     { name = "pytest" },
@@ -181,7 +181,7 @@ provides-extras = ["flask", "babel", "pdf"]
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=25.1.0" },
-    { name = "chordpro", extras = ["flask", "babel", "pdf"] },
+    { name = "chordpro-renderer", extras = ["flask", "babel", "pdf"] },
     { name = "pylint", specifier = ">=3.3.7" },
     { name = "pyright" },
     { name = "pytest", specifier = ">=8.0" },

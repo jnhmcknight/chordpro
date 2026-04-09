@@ -450,7 +450,7 @@ class TestRegisterRenderer:
         assert render(Song(), format="upper") == "CUSTOM"
 
     def test_registered_name_overrides_builtin(self):
-        original_html = _REGISTRY_SNAPSHOT = HtmlRenderer
+        _REGISTRY_SNAPSHOT = HtmlRenderer
 
         class NoopHtml(BaseRenderer):
             def render(self, song, semi_to_name=None):

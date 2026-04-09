@@ -30,7 +30,6 @@ from chordpro.models import (
 from chordpro.parser import build_chord_semi_to_name
 from chordpro.renderers import PdfRenderer, render
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -173,7 +172,9 @@ class TestPdfRendererLines:
         assert valid_pdf(self.renderer.render(song(cl)))
 
     def test_chord_line_multiple_segments(self):
-        cl = chord_line(Segment("G", "Amaz"), Segment("D", "ing"), Segment("Em", "grace"))
+        cl = chord_line(
+            Segment("G", "Amaz"), Segment("D", "ing"), Segment("Em", "grace")
+        )
         assert valid_pdf(self.renderer.render(song(cl)))
 
     def test_chord_line_notation_applied(self):

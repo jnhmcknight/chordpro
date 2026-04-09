@@ -61,7 +61,6 @@ class _ChordLineFlowable:
     def _build(self):
         from reportlab.pdfbase.pdfmetrics import stringWidth
         from reportlab.platypus.flowables import Flowable
-        from reportlab.lib import colors
 
         outer = self
 
@@ -76,9 +75,7 @@ class _ChordLineFlowable:
                         else 0.0
                     )
                     lw = (
-                        stringWidth(
-                            seg.lyric or "", outer.lyric_font, outer.lyric_size
-                        )
+                        stringWidth(seg.lyric or "", outer.lyric_font, outer.lyric_size)
                         if seg.lyric
                         else 0.0
                     )
@@ -188,7 +185,6 @@ class PdfRenderer(BaseRenderer):
             from reportlab.lib.pagesizes import letter
             from reportlab.lib.units import inch
             from reportlab.platypus import (
-                PageBreak,
                 Paragraph,
                 SimpleDocTemplate,
                 Spacer,
@@ -219,17 +215,32 @@ class PdfRenderer(BaseRenderer):
         def para_style(name, font, size, **kw):
             return ParagraphStyle(name, fontName=font, fontSize=size, **kw)
 
-        title_style = para_style("CPTitle", self.TITLE_FONT, self.TITLE_SIZE, spaceAfter=2)
-        subtitle_style = para_style("CPSubtitle", self.SUBTITLE_FONT, self.SUBTITLE_SIZE, spaceAfter=2)
-        artist_style = para_style("CPArtist", self.ARTIST_FONT, self.ARTIST_SIZE, spaceAfter=2)
+        title_style = para_style(
+            "CPTitle", self.TITLE_FONT, self.TITLE_SIZE, spaceAfter=2
+        )
+        subtitle_style = para_style(
+            "CPSubtitle", self.SUBTITLE_FONT, self.SUBTITLE_SIZE, spaceAfter=2
+        )
+        artist_style = para_style(
+            "CPArtist", self.ARTIST_FONT, self.ARTIST_SIZE, spaceAfter=2
+        )
         meta_style = para_style("CPMeta", self.META_FONT, self.META_SIZE, spaceAfter=2)
         section_label_style = para_style(
-            "CPSectionLabel", self.SECTION_LABEL_FONT, self.SECTION_LABEL_SIZE,
-            spaceBefore=8, spaceAfter=2,
+            "CPSectionLabel",
+            self.SECTION_LABEL_FONT,
+            self.SECTION_LABEL_SIZE,
+            spaceBefore=8,
+            spaceAfter=2,
         )
-        lyric_style = para_style("CPLyric", self.LYRIC_FONT, self.LYRIC_SIZE, spaceAfter=0)
-        comment_style = para_style("CPComment", self.COMMENT_FONT, self.COMMENT_SIZE, spaceAfter=2)
-        chorus_ref_style = para_style("CPChorusRef", self.CHORUS_REF_FONT, self.CHORUS_REF_SIZE, spaceAfter=2)
+        lyric_style = para_style(
+            "CPLyric", self.LYRIC_FONT, self.LYRIC_SIZE, spaceAfter=0
+        )
+        comment_style = para_style(
+            "CPComment", self.COMMENT_FONT, self.COMMENT_SIZE, spaceAfter=2
+        )
+        chorus_ref_style = para_style(
+            "CPChorusRef", self.CHORUS_REF_FONT, self.CHORUS_REF_SIZE, spaceAfter=2
+        )
 
         story = []
 
@@ -240,7 +251,9 @@ class PdfRenderer(BaseRenderer):
         for sub in song.meta.subtitle:
             header.append(Paragraph(self._esc(sub), subtitle_style))
         if song.meta.artist:
-            header.append(Paragraph(self._esc(", ".join(song.meta.artist)), artist_style))
+            header.append(
+                Paragraph(self._esc(", ".join(song.meta.artist)), artist_style)
+            )
         meta_parts = []
         if song.meta.key:
             meta_parts.append("Key: " + ", ".join(song.meta.key))
@@ -260,14 +273,22 @@ class PdfRenderer(BaseRenderer):
         for item in song.body:
             if hasattr(item, "lines"):
                 self._append_section(
-                    story, item, semi_to_name,
-                    section_label_style, lyric_style, comment_style, chorus_ref_style,
+                    story,
+                    item,
+                    semi_to_name,
+                    section_label_style,
+                    lyric_style,
+                    comment_style,
+                    chorus_ref_style,
                     chord_color,
                 )
             else:
                 flowable = self._line_to_flowable(
-                    item, semi_to_name,
-                    lyric_style, comment_style, chorus_ref_style,
+                    item,
+                    semi_to_name,
+                    lyric_style,
+                    comment_style,
+                    chorus_ref_style,
                     chord_color,
                 )
                 if flowable is not None:
@@ -281,11 +302,7 @@ class PdfRenderer(BaseRenderer):
     @staticmethod
     def _esc(text: str) -> str:
         """Escape text for use in a reportlab Paragraph."""
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-        )
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     def _chord_line_flowable(self, chord_line, semi_to_name, chord_color):
         return _ChordLineFlowable(
@@ -298,9 +315,16 @@ class PdfRenderer(BaseRenderer):
             chord_color=chord_color,
         ).get()
 
-    def _line_to_flowable(self, line, semi_to_name, lyric_style, comment_style, chorus_ref_style, chord_color):
+    def _line_to_flowable(
+        self,
+        line,
+        semi_to_name,
+        lyric_style,
+        comment_style,
+        chorus_ref_style,
+        chord_color,
+    ):
         from reportlab.platypus import PageBreak, Paragraph, Spacer
-        from reportlab.lib.units import inch
 
         if isinstance(line, ChordLine):
             return self._chord_line_flowable(line, semi_to_name, chord_color)
@@ -312,6 +336,7 @@ class PdfRenderer(BaseRenderer):
             return Paragraph(self._esc(line.text), comment_style)
         if isinstance(line, Highlight):
             from reportlab.lib.styles import ParagraphStyle
+
             highlight_style = ParagraphStyle(
                 "CPHighlight",
                 fontName="Helvetica-Bold",
@@ -327,8 +352,14 @@ class PdfRenderer(BaseRenderer):
         return None
 
     def _append_section(
-        self, story, section, semi_to_name,
-        section_label_style, lyric_style, comment_style, chorus_ref_style,
+        self,
+        story,
+        section,
+        semi_to_name,
+        section_label_style,
+        lyric_style,
+        comment_style,
+        chorus_ref_style,
         chord_color,
     ):
         from reportlab.platypus import Paragraph
@@ -337,8 +368,11 @@ class PdfRenderer(BaseRenderer):
             story.append(Paragraph(self._esc(section.label), section_label_style))
         for line in section.lines:
             flowable = self._line_to_flowable(
-                line, semi_to_name,
-                lyric_style, comment_style, chorus_ref_style,
+                line,
+                semi_to_name,
+                lyric_style,
+                comment_style,
+                chorus_ref_style,
                 chord_color,
             )
             if flowable is not None:
