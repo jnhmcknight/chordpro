@@ -46,6 +46,27 @@ class HtmlRenderer(BaseRenderer):
                     parts.append(rendered)
         return Markup("\n".join(parts))
 
+    def render_many(
+        self, songs: list[Song], semi_to_name: dict | None = None
+    ) -> Markup:
+        """Render multiple *songs* into a single HTML string.
+
+        Each song is wrapped in ``<div class="cp-song">`` so they can be styled
+        or targeted independently.
+        """
+        song_parts = []
+        for song in songs:
+            inner = []
+            for item in song.body:
+                if hasattr(item, "lines"):
+                    inner.append(self._render_section(item, semi_to_name))
+                else:
+                    rendered = self._render_line(item, semi_to_name)
+                    if rendered:
+                        inner.append(rendered)
+            song_parts.append('<div class="cp-song">\n' + "\n".join(inner) + "\n</div>")
+        return Markup("\n".join(song_parts))
+
     def _chord_display(self, chord: str, semi_to_name: dict | None) -> tuple[str, str]:
         display = _convert_chord_root(chord, semi_to_name) if semi_to_name else chord
         chord_html = _html.escape(display) if display else "&nbsp;"

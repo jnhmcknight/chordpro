@@ -3,7 +3,8 @@ Command-line interface for chordpro.
 
 Usage::
 
-    chordpro <file.cho> [--format html|text|quill-delta] [--notation standard|german|latin|nashville] [--key C]
+    chordpro <file.cho> [--format html|text|quill-delta|pdf] [--notation standard|german|latin|nashville] [--key C]
+    chordpro song1.cho song2.cho --format pdf   # multi-song PDF
     cat file.cho | chordpro -
 """
 
@@ -17,16 +18,16 @@ from .parser import (
     key_to_semitone,
     parse,
 )
-from .renderers import render
+from .renderers import render, render_many
 
 
 @click.command()
-@click.argument("file", default="-", metavar="FILE", type=click.Path(allow_dash=True))
+@click.argument("files", nargs=-1, metavar="FILE...", type=click.Path(allow_dash=True))
 @click.option(
     "--format",
     "-f",
     default="html",
-    type=click.Choice(["html", "text", "quill-delta"]),
+    type=click.Choice(["html", "text", "quill-delta", "pdf"]),
     help="Output format (default: html)",
 )
 @click.option(
@@ -43,25 +44,44 @@ from .renderers import render
     metavar="KEY",
     help="Root key for Nashville notation (e.g. C, G, Bb). Defaults to the song's own key.",
 )
-def convert(file: str, format: str, notation: str, key: str | None) -> None:
-    """Convert a ChordPro file to HTML, plain text, or Quill Delta."""
-    if file == "-":
-        content = click.get_text_stream("stdin").read()
-    else:
-        with open(file, encoding="utf-8") as fh:
-            content = fh.read()
+def convert(
+    files: tuple[str, ...], format: str, notation: str, key: str | None
+) -> None:
+    """Convert one or more ChordPro files to the selected output format.
 
-    song = parse(content)
+    Pass multiple FILE arguments to combine songs into a single output.
+    For PDF, each song will start on its own page.  Use ``-`` to read from
+    stdin.
+    """
+    if not files:
+        files = ("-",)
+
+    songs = []
+    for path in files:
+        if path == "-":
+            content = click.get_text_stream("stdin").read()
+        else:
+            with open(path, encoding="utf-8") as fh:
+                content = fh.read()
+        songs.append(parse(content))
 
     if notation == "nashville":
-        key_str = key or (song.meta.key[0] if song.meta.key else "C")
+        # For multi-song Nashville, use --key if given, else first song's key.
+        key_str = key or (songs[0].meta.key[0] if songs[0].meta.key else "C")
         semi_to_name = build_nashville_semi_to_name(key_to_semitone(key_str))
     else:
         semi_to_name = build_chord_semi_to_name(notation)
 
-    result = render(song, semi_to_name, format=format)
+    if len(songs) == 1:
+        result = render(songs[0], semi_to_name, format=format)
+    else:
+        result = render_many(songs, semi_to_name, format=format)
 
-    if isinstance(result, dict):
+    if isinstance(result, bytes):
+        import sys
+
+        sys.stdout.buffer.write(result)
+    elif isinstance(result, dict):
         import json
 
         click.echo(json.dumps(result, ensure_ascii=False))

@@ -178,18 +178,39 @@ class PdfRenderer(BaseRenderer):
     # -----------------------------------------------------------------------
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> bytes:
+        buf, doc = self._make_doc()
+        styles, chord_color = self._make_styles()
+        story = self._build_song_story(song, semi_to_name, styles, chord_color)
+        doc.build(story)
+        return buf.getvalue()
+
+    def render_many(self, songs: list[Song], semi_to_name: dict | None = None) -> bytes:
+        """Render multiple *songs* into a single PDF.  Each song starts on a new page."""
+        from reportlab.platypus import PageBreak
+
+        buf, doc = self._make_doc()
+        styles, chord_color = self._make_styles()
+        story = []
+        for i, song in enumerate(songs):
+            if i > 0:
+                story.append(PageBreak())
+            story.extend(
+                self._build_song_story(song, semi_to_name, styles, chord_color)
+            )
+        doc.build(story)
+        return buf.getvalue()
+
+    # -----------------------------------------------------------------------
+    # Internal helpers
+    # -----------------------------------------------------------------------
+
+    def _make_doc(self):
+        """Create a BytesIO buffer and a SimpleDocTemplate for this renderer's settings."""
         try:
             from io import BytesIO
-
-            from reportlab.lib import colors
             from reportlab.lib.pagesizes import letter
             from reportlab.lib.units import inch
-            from reportlab.platypus import (
-                Paragraph,
-                SimpleDocTemplate,
-                Spacer,
-            )
-            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate
         except ImportError:
             raise ImportError(
                 "reportlab is required for PDF rendering. "
@@ -198,7 +219,6 @@ class PdfRenderer(BaseRenderer):
 
         page_size = self.PAGE_SIZE or letter
         margin = (self.MARGIN or 1.0) * inch
-
         buf = BytesIO()
         doc = SimpleDocTemplate(
             buf,
@@ -209,50 +229,65 @@ class PdfRenderer(BaseRenderer):
             bottomMargin=margin,
             compress=1 if self.COMPRESS else 0,
         )
+        return buf, doc
 
-        chord_color = colors.HexColor("#1a56db")
+    def _make_styles(self):
+        """Create and return (styles_dict, chord_color) for this renderer's settings."""
+        from reportlab.lib import colors
+        from reportlab.lib.styles import ParagraphStyle
 
         def para_style(name, font, size, **kw):
             return ParagraphStyle(name, fontName=font, fontSize=size, **kw)
 
-        title_style = para_style(
-            "CPTitle", self.TITLE_FONT, self.TITLE_SIZE, spaceAfter=2
-        )
-        subtitle_style = para_style(
-            "CPSubtitle", self.SUBTITLE_FONT, self.SUBTITLE_SIZE, spaceAfter=2
-        )
-        artist_style = para_style(
-            "CPArtist", self.ARTIST_FONT, self.ARTIST_SIZE, spaceAfter=2
-        )
-        meta_style = para_style("CPMeta", self.META_FONT, self.META_SIZE, spaceAfter=2)
-        section_label_style = para_style(
-            "CPSectionLabel",
-            self.SECTION_LABEL_FONT,
-            self.SECTION_LABEL_SIZE,
-            spaceBefore=8,
-            spaceAfter=2,
-        )
-        lyric_style = para_style(
-            "CPLyric", self.LYRIC_FONT, self.LYRIC_SIZE, spaceAfter=0
-        )
-        comment_style = para_style(
-            "CPComment", self.COMMENT_FONT, self.COMMENT_SIZE, spaceAfter=2
-        )
-        chorus_ref_style = para_style(
-            "CPChorusRef", self.CHORUS_REF_FONT, self.CHORUS_REF_SIZE, spaceAfter=2
-        )
+        styles = {
+            "title": para_style(
+                "CPTitle", self.TITLE_FONT, self.TITLE_SIZE, spaceAfter=2
+            ),
+            "subtitle": para_style(
+                "CPSubtitle", self.SUBTITLE_FONT, self.SUBTITLE_SIZE, spaceAfter=2
+            ),
+            "artist": para_style(
+                "CPArtist", self.ARTIST_FONT, self.ARTIST_SIZE, spaceAfter=2
+            ),
+            "meta": para_style("CPMeta", self.META_FONT, self.META_SIZE, spaceAfter=2),
+            "section_label": para_style(
+                "CPSectionLabel",
+                self.SECTION_LABEL_FONT,
+                self.SECTION_LABEL_SIZE,
+                spaceBefore=8,
+                spaceAfter=2,
+            ),
+            "lyric": para_style(
+                "CPLyric", self.LYRIC_FONT, self.LYRIC_SIZE, spaceAfter=0
+            ),
+            "comment": para_style(
+                "CPComment", self.COMMENT_FONT, self.COMMENT_SIZE, spaceAfter=2
+            ),
+            "chorus_ref": para_style(
+                "CPChorusRef", self.CHORUS_REF_FONT, self.CHORUS_REF_SIZE, spaceAfter=2
+            ),
+        }
+        chord_color = colors.HexColor("#1a56db")
+        return styles, chord_color
+
+    def _build_song_story(
+        self, song: Song, semi_to_name, styles: dict, chord_color
+    ) -> list:
+        """Build and return the list of reportlab flowables for a single song."""
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, Spacer
 
         story = []
 
         # --- Metadata header ---
         header = []
         if song.meta.title:
-            header.append(Paragraph(self._esc(song.meta.title), title_style))
+            header.append(Paragraph(self._esc(song.meta.title), styles["title"]))
         for sub in song.meta.subtitle:
-            header.append(Paragraph(self._esc(sub), subtitle_style))
+            header.append(Paragraph(self._esc(sub), styles["subtitle"]))
         if song.meta.artist:
             header.append(
-                Paragraph(self._esc(", ".join(song.meta.artist)), artist_style)
+                Paragraph(self._esc(", ".join(song.meta.artist)), styles["artist"])
             )
         meta_parts = []
         if song.meta.key:
@@ -264,7 +299,9 @@ class PdfRenderer(BaseRenderer):
         if song.meta.capo:
             meta_parts.append("Capo: " + song.meta.capo)
         if meta_parts:
-            header.append(Paragraph(self._esc("  |  ".join(meta_parts)), meta_style))
+            header.append(
+                Paragraph(self._esc("  |  ".join(meta_parts)), styles["meta"])
+            )
         if header:
             story.extend(header)
             story.append(Spacer(1, 0.2 * inch))
@@ -276,26 +313,25 @@ class PdfRenderer(BaseRenderer):
                     story,
                     item,
                     semi_to_name,
-                    section_label_style,
-                    lyric_style,
-                    comment_style,
-                    chorus_ref_style,
+                    styles["section_label"],
+                    styles["lyric"],
+                    styles["comment"],
+                    styles["chorus_ref"],
                     chord_color,
                 )
             else:
                 flowable = self._line_to_flowable(
                     item,
                     semi_to_name,
-                    lyric_style,
-                    comment_style,
-                    chorus_ref_style,
+                    styles["lyric"],
+                    styles["comment"],
+                    styles["chorus_ref"],
                     chord_color,
                 )
                 if flowable is not None:
                     story.append(flowable)
 
-        doc.build(story)
-        return buf.getvalue()
+        return story
 
     # -----------------------------------------------------------------------
 

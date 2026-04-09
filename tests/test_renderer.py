@@ -38,6 +38,7 @@ from chordpro.renderers import (
     chordpro_to_html,
     register_renderer,
     render,
+    render_many,
     render_html,
 )
 
@@ -519,3 +520,224 @@ class TestRenderHtmlShim:
 
     def test_empty_song(self):
         assert render_html(Song()) == Markup("")
+
+
+# ---------------------------------------------------------------------------
+# BaseRenderer.render_many — default implementation
+# ---------------------------------------------------------------------------
+
+
+class TestBaseRendererManyDefault:
+    """The default render_many() returns a list of individual render() results."""
+
+    def test_default_returns_list(self):
+        class EchoRenderer(BaseRenderer):
+            def render(self, s, semi_to_name=None):
+                return "SONG"
+
+        renderer = EchoRenderer()
+        result = renderer.render_many([Song(), Song()])
+        assert result == ["SONG", "SONG"]
+
+    def test_default_empty_list(self):
+        class EchoRenderer(BaseRenderer):
+            def render(self, s, semi_to_name=None):
+                return "SONG"
+
+        assert EchoRenderer().render_many([]) == []
+
+    def test_default_single_song(self):
+        class EchoRenderer(BaseRenderer):
+            def render(self, s, semi_to_name=None):
+                return "SONG"
+
+        assert EchoRenderer().render_many([Song()]) == ["SONG"]
+
+
+# ---------------------------------------------------------------------------
+# HtmlRenderer.render_many
+# ---------------------------------------------------------------------------
+
+
+class TestHtmlRendererMany:
+    renderer = HtmlRenderer()
+
+    def _two_songs(self):
+        return [
+            song(LyricLine("Amazing grace")),
+            song(LyricLine("How sweet the sound")),
+        ]
+
+    def test_returns_markup(self):
+        assert isinstance(self.renderer.render_many(self._two_songs()), Markup)
+
+    def test_each_song_wrapped_in_cp_song_div(self):
+        result = self.renderer.render_many(self._two_songs())
+        assert result.count('<div class="cp-song">') == 2
+
+    def test_content_from_both_songs_present(self):
+        result = self.renderer.render_many(self._two_songs())
+        assert "Amazing grace" in result
+        assert "How sweet the sound" in result
+
+    def test_single_song_still_wrapped(self):
+        result = self.renderer.render_many([song(LyricLine("hi"))])
+        assert '<div class="cp-song">' in result
+
+    def test_empty_list_returns_empty_markup(self):
+        assert self.renderer.render_many([]) == Markup("")
+
+    def test_sections_inside_cp_song_wrapper(self):
+        songs = [song(Verse(label="Verse 1", lines=[LyricLine("text")]))]
+        result = self.renderer.render_many(songs)
+        # cp-section must appear inside cp-song
+        cp_song_pos = result.index('class="cp-song"')
+        cp_section_pos = result.index('class="cp-section"')
+        assert cp_section_pos > cp_song_pos
+
+    def test_notation_applied(self):
+        semi = build_chord_semi_to_name("latin")
+        result = self.renderer.render_many([song(chord_line(Segment("C", "Do")))], semi)
+        assert ">Do<" in result
+
+    def test_xss_escaped(self):
+        result = self.renderer.render_many([song(LyricLine("<script>"))])
+        assert "<script>" not in result
+
+
+# ---------------------------------------------------------------------------
+# TextRenderer.render_many
+# ---------------------------------------------------------------------------
+
+
+class TestTextRendererMany:
+    renderer = TextRenderer()
+
+    def _two_songs(self):
+        return [song(LyricLine("song one")), song(LyricLine("song two"))]
+
+    def test_returns_str(self):
+        assert isinstance(self.renderer.render_many(self._two_songs()), str)
+
+    def test_songs_joined_by_form_feed(self):
+        result = self.renderer.render_many(self._two_songs())
+        assert "\f" in result
+        parts = result.split("\f")
+        assert len(parts) == 2
+
+    def test_content_from_both_songs_present(self):
+        result = self.renderer.render_many(self._two_songs())
+        assert "song one" in result
+        assert "song two" in result
+
+    def test_three_songs_have_two_form_feeds(self):
+        songs = [song(LyricLine(f"s{i}")) for i in range(3)]
+        assert self.renderer.render_many(songs).count("\f") == 2
+
+    def test_single_song_no_form_feed(self):
+        result = self.renderer.render_many([song(LyricLine("only"))])
+        assert "\f" not in result
+
+    def test_empty_list_returns_empty_string(self):
+        assert self.renderer.render_many([]) == ""
+
+    def test_notation_applied(self):
+        semi = build_chord_semi_to_name("latin")
+        result = self.renderer.render_many([song(chord_line(Segment("C", "Do")))], semi)
+        assert "Do" in result
+
+
+# ---------------------------------------------------------------------------
+# QuillDeltaRenderer.render_many
+# ---------------------------------------------------------------------------
+
+
+class TestQuillDeltaRendererMany:
+    renderer = QuillDeltaRenderer()
+
+    def _two_songs(self):
+        return [song(LyricLine("song one")), song(LyricLine("song two"))]
+
+    def test_returns_dict_with_ops(self):
+        result = self.renderer.render_many(self._two_songs())
+        assert isinstance(result, dict)
+        assert "ops" in result
+
+    def test_content_from_both_songs_present(self):
+        ops = self.renderer.render_many(self._two_songs())["ops"]
+        texts = [op["insert"] for op in ops]
+        assert "song one" in texts
+        assert "song two" in texts
+
+    def test_page_break_op_inserted_between_songs(self):
+        ops = self.renderer.render_many(self._two_songs())["ops"]
+        page_break_ops = [
+            op for op in ops if op.get("attributes", {}).get("page_break")
+        ]
+        assert len(page_break_ops) == 1
+
+    def test_page_break_op_is_newline(self):
+        ops = self.renderer.render_many(self._two_songs())["ops"]
+        page_break_op = next(
+            op for op in ops if op.get("attributes", {}).get("page_break")
+        )
+        assert page_break_op["insert"] == "\n"
+
+    def test_three_songs_have_two_page_breaks(self):
+        songs = [song(LyricLine(f"s{i}")) for i in range(3)]
+        ops = self.renderer.render_many(songs)["ops"]
+        page_breaks = [op for op in ops if op.get("attributes", {}).get("page_break")]
+        assert len(page_breaks) == 2
+
+    def test_single_song_no_page_break(self):
+        ops = self.renderer.render_many([song(LyricLine("only"))])["ops"]
+        assert not any(op.get("attributes", {}).get("page_break") for op in ops)
+
+    def test_empty_list_returns_empty_ops(self):
+        assert self.renderer.render_many([]) == {"ops": []}
+
+    def test_notation_applied(self):
+        semi = build_chord_semi_to_name("latin")
+        ops = self.renderer.render_many([song(chord_line(Segment("C", "Do")))], semi)[
+            "ops"
+        ]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops
+
+
+# ---------------------------------------------------------------------------
+# render_many() dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestRenderManyDispatch:
+    def test_html_format_returns_markup(self):
+        songs = [song(LyricLine("hi")), song(LyricLine("there"))]
+        assert isinstance(render_many(songs, format="html"), Markup)
+
+    def test_text_format_returns_str(self):
+        songs = [song(LyricLine("hi")), song(LyricLine("there"))]
+        result = render_many(songs, format="text")
+        assert isinstance(result, str)
+        assert not isinstance(result, Markup)
+
+    def test_quill_delta_format_returns_dict(self):
+        songs = [song(LyricLine("hi")), song(LyricLine("there"))]
+        result = render_many(songs, format="quill-delta")
+        assert isinstance(result, dict)
+        assert "ops" in result
+
+    def test_unknown_format_raises_value_error(self):
+        with pytest.raises(ValueError, match="Unknown format"):
+            render_many([Song()], format="bogus")
+
+    def test_custom_renderer_render_many_called(self):
+        class MultiRenderer(BaseRenderer):
+            def render(self, s, semi_to_name=None):
+                return "SONG"
+
+            def render_many(self, songs, semi_to_name=None):
+                return f"MULTI:{len(songs)}"
+
+        register_renderer("multi", MultiRenderer)
+        assert render_many([Song(), Song()], format="multi") == "MULTI:2"

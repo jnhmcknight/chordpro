@@ -51,6 +51,7 @@ __all__ = [
     "QuillDeltaRenderer",
     "PdfRenderer",
     "render",
+    "render_many",
     "register_renderer",
     # backward compat
     "render_html",
@@ -104,6 +105,36 @@ def render(
             f"Unknown format {format!r}. Registered formats: {registered}"
         ) from None
     return renderer_cls().render(song, semi_to_name)
+
+
+def render_many(
+    songs: list[Song],
+    semi_to_name: dict | None = None,
+    format: str = "html",
+) -> Any:
+    """Render multiple *songs* as a single combined output using *format*.
+
+    Songs are combined in order with format-appropriate separators:
+
+    * ``"html"``        — each song wrapped in ``<div class="cp-song">``
+    * ``"text"``        — songs joined by form-feed characters (``\\f``)
+    * ``"quill-delta"`` — ops merged with ``{"page_break": True}`` between songs
+    * ``"pdf"``         — each song starts on a new page
+
+    Additional formats can be added with ``register_renderer()``.  Custom
+    renderers that do not override ``render_many()`` receive a list of
+    individual ``render()`` results.
+
+    Raises ``ValueError`` for unknown format names.
+    """
+    try:
+        renderer_cls = _REGISTRY[format]
+    except KeyError:
+        registered = ", ".join(f'"{k}"' for k in _REGISTRY)
+        raise ValueError(
+            f"Unknown format {format!r}. Registered formats: {registered}"
+        ) from None
+    return renderer_cls().render_many(songs, semi_to_name)
 
 
 # ---------------------------------------------------------------------------

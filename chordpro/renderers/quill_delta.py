@@ -33,6 +33,23 @@ class QuillDeltaRenderer(BaseRenderer):
                 self._render_line(ops, item, semi_to_name)
         return {"ops": ops}
 
+    def render_many(self, songs: list[Song], semi_to_name: dict | None = None) -> dict:
+        """Render multiple *songs* into a single Quill Delta.
+
+        Songs are separated by a newline op carrying ``{"page_break": True}``
+        so a custom Quill blot can render them as page breaks.
+        """
+        ops: list[dict] = []
+        for i, song in enumerate(songs):
+            if i > 0:
+                self._insert(ops, "\n", page_break=True)
+            for item in song.body:
+                if hasattr(item, "lines"):
+                    self._render_section(ops, item, semi_to_name)
+                else:
+                    self._render_line(ops, item, semi_to_name)
+        return {"ops": ops}
+
     def _insert(self, ops: list, text: str, **attrs) -> None:
         op: dict = {"insert": text}
         if attrs:

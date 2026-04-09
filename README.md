@@ -182,6 +182,21 @@ chordpro song.cho --notation nashville --key G
 cat song.cho | chordpro -
 ```
 
+### Multiple files
+
+Pass multiple files to combine them into a single output. For PDF, each song starts on a new page.
+
+```bash
+# Combine into a single HTML document
+chordpro song1.cho song2.cho song3.cho
+
+# Build a multi-song PDF songbook
+chordpro *.cho --format pdf > songbook.pdf
+
+# Combine from stdin
+cat song1.cho song2.cho | chordpro -
+```
+
 **Options:**
 
 | Option | Short | Choices | Default |
@@ -189,6 +204,8 @@ cat song.cho | chordpro -
 | `--format` | `-f` | `html`, `text`, `quill-delta`, `pdf` | `html` |
 | `--notation` | `-n` | `standard`, `german`, `latin`, `nashville` | `standard` |
 | `--key` | `-k` | any key string (e.g. `C`, `G`, `Bb`) | song metadata or `C` |
+
+> **Nashville + multiple files:** when `--notation nashville` is used with multiple files, pass `--key` explicitly. Without it, the key defaults to the first song's metadata.
 
 ## Supported ChordPro directives
 
@@ -276,6 +293,7 @@ Style the rendered HTML output with these classes:
 
 | Class | Element |
 |-------|---------|
+| `cp-song` | Wrapper for a single song in multi-song `render_many()` HTML output (`div`) |
 | `cp-section` | Section wrapper (`div`); `data-section` holds the kind |
 | `cp-section-label` | Section heading (`div`) |
 | `cp-line` | A line containing chords and lyrics (`div`) |
@@ -318,7 +336,7 @@ song.meta.key           # list[str]
 song.body               # list of SongItem (sections and lines)
 ```
 
-### Rendering
+### Rendering a single song
 
 ```python
 from chordpro import render, build_chord_semi_to_name, build_nashville_semi_to_name, key_to_semitone
@@ -343,21 +361,54 @@ html = chordpro_to_html(content, semi_to_name)   # parse + render in one call
 html = render_html(song, semi_to_name)
 ```
 
+### Rendering multiple songs
+
+Use `render_many()` to combine a list of `Song` objects into a single output. Songs are merged in order with format-appropriate separators.
+
+```python
+from chordpro import parse, render_many, build_chord_semi_to_name
+
+songs = [parse(open(f).read()) for f in ["song1.cho", "song2.cho", "song3.cho"]]
+semi_to_name = build_chord_semi_to_name("standard")
+
+html  = render_many(songs, semi_to_name, format="html")         # each song in <div class="cp-song">
+text  = render_many(songs, semi_to_name, format="text")         # songs joined by form-feed (\f)
+delta = render_many(songs, semi_to_name, format="quill-delta")  # page_break op between songs
+pdf   = render_many(songs, semi_to_name, format="pdf")          # new page per song (bytes)
+
+with open("songbook.pdf", "wb") as f:
+    f.write(pdf)
+```
+
+| Format | Separator |
+|--------|-----------|
+| `"html"` | Each song wrapped in `<div class="cp-song">` |
+| `"text"` | Songs joined by a form-feed character (`\f`) |
+| `"quill-delta"` | A `{"insert": "\n", "attributes": {"page_break": true}}` op between songs |
+| `"pdf"` | A hard page break (`PageBreak`) between songs |
+
+Custom renderers that do not override `render_many()` receive a `list` of individual `render()` results.
+
 ### PDF rendering
 
 `PdfRenderer` is built in and registered as `"pdf"`. It requires the `reportlab` package (`pip install chordpro[pdf]`).
 
 ```python
-from chordpro import parse, render
+from chordpro import parse, render, render_many
 
-song = parse(content)
+# Single song
+song = parse(open("song.cho").read())
 pdf_bytes = render(song, format="pdf")
 
-with open("song.pdf", "wb") as f:
+# Multiple songs — each starts on a new page
+songs = [parse(open(f).read()) for f in ["song1.cho", "song2.cho"]]
+pdf_bytes = render_many(songs, format="pdf")
+
+with open("songbook.pdf", "wb") as f:
     f.write(pdf_bytes)
 ```
 
-The rendered PDF includes a header with title, subtitle, artist, and key metadata. Each section is labelled. Chord lines use the classic two-row layout — chords printed in blue directly above the corresponding lyric syllables, columns aligned by segment width. `{new_page}` emits a hard page break.
+The rendered PDF includes a header with title, subtitle, artist, and key metadata. Each section is labelled. Chord lines use the classic two-row layout — chords printed in blue directly above the corresponding lyric syllables, columns aligned by segment width. `{new_page}` emits a hard page break within a song; `render_many()` inserts a page break between songs.
 
 You can subclass `PdfRenderer` to adjust fonts, sizes, margins, or page size:
 
@@ -374,7 +425,7 @@ class MyRenderer(PdfRenderer):
 
 ### Custom renderers
 
-Subclass `BaseRenderer`, implement `render()`, and register the class under a name. Once registered, the name works as the `format` argument to `render()` and the `chordpro` Jinja2 filter.
+Subclass `BaseRenderer`, implement `render()`, and register the class under a name. Once registered, the name works as the `format` argument to `render()`, `render_many()`, and the `chordpro` Jinja2 filter.
 
 ```python
 from chordpro import BaseRenderer, register_renderer
@@ -382,6 +433,9 @@ from chordpro import BaseRenderer, register_renderer
 class SvgRenderer(BaseRenderer):
     def render(self, song, semi_to_name=None):
         ...  # return SVG string
+
+    def render_many(self, songs, semi_to_name=None):
+        ...  # return combined output; omit to get list of render() results
 
 register_renderer("svg", SvgRenderer)
 ```

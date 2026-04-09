@@ -34,6 +34,15 @@ class TextRenderer(BaseRenderer):
                     parts.append(result)
         return "\n".join(parts)
 
+    def render_many(self, songs: list[Song], semi_to_name: dict | None = None) -> str:
+        """Render multiple *songs* separated by form-feed characters (``\\f``).
+
+        A form-feed (``\\f``, ASCII 12) is the conventional page-break marker
+        for plain-text output and is also used by ``{new_page}`` within a
+        single song.
+        """
+        return "\f".join(self.render(song, semi_to_name) for song in songs)
+
     def _render_section(self, section, semi_to_name: dict | None) -> str:
         lines = []
         if section.label:
