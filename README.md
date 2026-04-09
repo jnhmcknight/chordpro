@@ -23,6 +23,8 @@ If you use [flask-babel](https://flask-babel.tkte.ch/) for i18n, install the opt
 pip install chordpro-renderer[babel]
 ```
 
+See [Internationalization](#internationalization) for setup details.
+
 ## Flask extension
 
 ### Initialization
@@ -448,6 +450,51 @@ You can also pass a renderer instance directly to the filter:
 
 ```jinja2
 {{ song.content | chordpro(my_renderer_instance) }}
+```
+
+## Internationalization
+
+Section labels (Verse, Chorus, Bridge, etc.) are marked for translation using `flask-babel`'s `lazy_gettext`. The package ships compiled translations for **German** (`de`), **French** (`fr`), and **Spanish** (`es`).
+
+### Enabling translations in your app
+
+Tell flask-babel where to find the chordpro translation catalog by including the package's `translations/` directory alongside your own:
+
+```python
+import chordpro
+import os
+
+app = Flask(__name__)
+babel = Babel(app)
+
+# Merge chordpro's translations with your app's own catalog
+chordpro_translations = os.path.join(os.path.dirname(chordpro.__file__), "translations")
+app.config["BABEL_TRANSLATION_DIRECTORIES"] = f"{chordpro_translations};translations"
+```
+
+With that in place, flask-babel resolves the active locale automatically (via `get_locale`) and the section labels rendered by the `chordpro` Jinja2 filter will be translated accordingly.
+
+### Adding a new language
+
+```bash
+# 1. Re-extract strings (keeps existing translations)
+pybabel extract -F babel.cfg -o messages.pot .
+
+# 2. Initialize a new locale (e.g. Portuguese)
+pybabel init -i messages.pot -d chordpro/translations -l pt
+
+# 3. Fill in the msgstr values in chordpro/translations/pt/LC_MESSAGES/messages.po
+
+# 4. Compile
+pybabel compile -d chordpro/translations
+```
+
+### Updating after source changes
+
+```bash
+pybabel extract -F babel.cfg -o messages.pot .
+pybabel update -i messages.pot -d chordpro/translations
+pybabel compile -d chordpro/translations
 ```
 
 ## Development

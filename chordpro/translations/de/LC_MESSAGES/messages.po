@@ -1,0 +1,83 @@
+# German translations for chordpro-renderer.
+# Copyright (C) 2026 Jared McKnight
+# This file is distributed under the same license as the chordpro-renderer
+# project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: chordpro-renderer 1.0.5\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-04-09 19:18-0400\n"
+"PO-Revision-Date: 2026-04-09 19:19-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: de\n"
+"Language-Team: de <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: chordpro/constants.py:10
+msgid "Verse"
+msgstr "Strophe"
+
+#: chordpro/constants.py:11
+msgid "Chorus"
+msgstr "Refrain"
+
+#: chordpro/constants.py:12
+msgid "Bridge"
+msgstr "Brücke"
+
+#: chordpro/constants.py:13 chordpro/constants.py:14
+msgid "Pre-Chorus"
+msgstr "Vor-Refrain"
+
+#: chordpro/constants.py:15
+msgid "Outro"
+msgstr "Outro"
+
+#: chordpro/constants.py:16
+msgid "Intro"
+msgstr "Intro"
+
+#: chordpro/constants.py:17
+msgid "Tab"
+msgstr "Tabulatur"
+
+#: chordpro/constants.py:18
+msgid "Grid"
+msgstr "Raster"
+
+#: chordpro/constants.py:19
+msgid "Tag"
+msgstr "Coda"
+
+#: chordpro/constants.py:20
+msgid "Interlude"
+msgstr "Zwischenspiel"
+
+#: chordpro/constants.py:21
+msgid "Solo"
+msgstr "Solo"
+
+#: chordpro/constants.py:22
+msgid "Instrumental"
+msgstr "Instrumental"
+
+#: chordpro/constants.py:23
+msgid "ABC Notation"
+msgstr "ABC-Notation"
+
+#: chordpro/constants.py:24
+msgid "Lilypond"
+msgstr "Lilypond"
+
+#: chordpro/constants.py:25
+msgid "SVG"
+msgstr "SVG"
+
+#: chordpro/constants.py:26
+msgid "Text"
+msgstr "Text"
