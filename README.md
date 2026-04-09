@@ -8,19 +8,19 @@ It was originally designed as a [Flask](https://flask.palletsprojects.com/) exte
 
 ```bash
 # Command-line tool and Python API only:
-pip install chordpro
+pip install chordpro-renderer
 
 # Flask extension (also installs Flask):
-pip install chordpro[flask]
+pip install chordpro-renderer[flask]
 
 # PDF rendering (also installs reportlab):
-pip install chordpro[pdf]
+pip install chordpro-renderer[pdf]
 ```
 
 If you use [flask-babel](https://flask-babel.tkte.ch/) for i18n, install the optional extra so section labels are translatable (also installs Flask):
 
 ```bash
-pip install chordpro[babel]
+pip install chordpro-renderer[babel]
 ```
 
 ## Flask extension
@@ -52,7 +52,7 @@ def create_app():
 
 ### Template filters
 
-The extension registers two Jinja2 filters.
+The extension registers two Jinja2 filters: `chordpro` and `format_key`.
 
 #### `chordpro`
 

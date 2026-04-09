@@ -1,12 +1,22 @@
 [project]
-name = "chordpro"
-version = "1.0.1"
+name = "chordpro-renderer"
+version = "1.0.3"
 description = "ChordPro parser, renderer, and Flask extension"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Jared McKnight", email = "jmcknight@archertech.ca" },
+]
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.0",
     "markupsafe>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/jnhmcknight/chordpro"
+Repository = "https://github.com/jnhmcknight/chordpro"
+Issues = "https://github.com/jnhmcknight/chordpro/issues"
 
 [project.scripts]
 chordpro = "chordpro.cli:main"
@@ -44,6 +54,10 @@ addopts = "--cov=chordpro --cov-report=term-missing"
 [build-system]
 requires = ["uv_build>=0.6"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "chordpro"
 
 [tool.pyright]
 include = ["chordpro"]
