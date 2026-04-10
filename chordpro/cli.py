@@ -44,8 +44,21 @@ from .renderers import render, render_many
     metavar="KEY",
     help="Root key for Nashville notation (e.g. C, G, Bb). Defaults to the song's own key.",
 )
+@click.option(
+    "--ascii-accidentals/--unicode-accidentals",
+    default=None,
+    help=(
+        "Use ASCII # and b for accidentals (--ascii-accidentals) or proper Unicode "
+        "♯ and ♭ symbols (--unicode-accidentals). "
+        "Defaults to ASCII for text output and Unicode for all other formats."
+    ),
+)
 def convert(
-    files: tuple[str, ...], format: str, notation: str, key: str | None
+    files: tuple[str, ...],
+    format: str,
+    notation: str,
+    key: str | None,
+    ascii_accidentals: bool | None,
 ) -> None:
     """Convert one or more ChordPro files to the selected output format.
 
@@ -73,9 +86,9 @@ def convert(
         semi_to_name = build_chord_semi_to_name(notation)
 
     if len(songs) == 1:
-        result = render(songs[0], semi_to_name, format=format)
+        result = render(songs[0], semi_to_name, format=format, ascii_accidentals=ascii_accidentals)
     else:
-        result = render_many(songs, semi_to_name, format=format)
+        result = render_many(songs, semi_to_name, format=format, ascii_accidentals=ascii_accidentals)
 
     if isinstance(result, bytes):
         import sys

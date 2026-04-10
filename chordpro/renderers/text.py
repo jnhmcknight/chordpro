@@ -21,7 +21,13 @@ class TextRenderer(BaseRenderer):
 
     Chord lines use the classic two-line layout: a chord row directly above
     the corresponding lyric row, columns aligned by segment width.
+
+    Defaults to ASCII accidentals (``#`` / ``b``) for plain-text
+    compatibility.  Pass ``ascii_accidentals=False`` to use Unicode symbols.
     """
+
+    def __init__(self, ascii_accidentals: bool = True) -> None:
+        super().__init__(ascii_accidentals=ascii_accidentals)
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> str:
         parts = []
@@ -59,7 +65,7 @@ class TextRenderer(BaseRenderer):
             lyric_row = ""
             for seg in line.segments:
                 if seg.chord is not None:
-                    chord = (
+                    chord = self._finalize_chord(
                         _convert_chord_root(seg.chord, semi_to_name)
                         if semi_to_name
                         else seg.chord

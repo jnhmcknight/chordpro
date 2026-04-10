@@ -68,7 +68,9 @@ class HtmlRenderer(BaseRenderer):
         return Markup("\n".join(song_parts))
 
     def _chord_display(self, chord: str, semi_to_name: dict | None) -> tuple[str, str]:
-        display = _convert_chord_root(chord, semi_to_name) if semi_to_name else chord
+        display = self._finalize_chord(
+            _convert_chord_root(chord, semi_to_name) if semi_to_name else chord
+        )
         chord_html = _html.escape(display) if display else "&nbsp;"
         data_attr = f' data-chord="{_html.escape(chord)}"' if chord else ""
         return chord_html, data_attr

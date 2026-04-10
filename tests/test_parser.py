@@ -16,7 +16,12 @@ from chordpro.models import (
     Tab,
     Verse,
 )
-from chordpro.parser import _convert_chord_root, build_chord_semi_to_name, parse
+from chordpro.parser import (
+    _convert_chord_root,
+    _normalize_accidental,
+    build_chord_semi_to_name,
+    parse,
+)
 
 # ---------------------------------------------------------------------------
 # build_chord_semi_to_name
@@ -64,15 +69,46 @@ class TestConvertChordRoot:
 
     def test_sharp_root(self):
         s = build_chord_semi_to_name("latin")
-        assert _convert_chord_root("F#", s) == "Fa#"
+        assert _convert_chord_root("F#", s) == "Fa♯"
 
     def test_flat_root(self):
         s = build_chord_semi_to_name("standard")
-        assert _convert_chord_root("Bb", s) == "Bb"
+        assert _convert_chord_root("Bb", s) == "B♭"
 
     def test_passthrough_if_not_a_note(self):
         s = build_chord_semi_to_name("standard")
         assert _convert_chord_root("N.C.", s) == "N.C."
+
+    def test_already_unicode_sharp_accepted(self):
+        # Input already uses ♯ — should still resolve correctly
+        s = build_chord_semi_to_name("standard")
+        assert _convert_chord_root("F♯", s) == "F♯"
+
+    def test_already_unicode_flat_accepted(self):
+        s = build_chord_semi_to_name("standard")
+        assert _convert_chord_root("B♭", s) == "B♭"
+
+
+# ---------------------------------------------------------------------------
+# _normalize_accidental
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeAccidental:
+    def test_ascii_sharp_to_unicode(self):
+        assert _normalize_accidental("C#") == "C♯"
+
+    def test_ascii_flat_to_unicode(self):
+        assert _normalize_accidental("Bb") == "B♭"
+
+    def test_natural_note_unchanged(self):
+        assert _normalize_accidental("C") == "C"
+
+    def test_already_unicode_sharp_unchanged(self):
+        assert _normalize_accidental("F♯") == "F♯"
+
+    def test_already_unicode_flat_unchanged(self):
+        assert _normalize_accidental("B♭") == "B♭"
 
 
 # ---------------------------------------------------------------------------

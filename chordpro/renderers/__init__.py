@@ -89,11 +89,17 @@ def render(
     song: Song,
     semi_to_name: dict | None = None,
     format: str = "html",
+    ascii_accidentals: bool | None = None,
 ) -> Any:
     """Render *song* using the named *format*.
 
     Built-in formats: ``"html"``, ``"text"``, ``"quill-delta"``.
     Additional formats can be added with ``register_renderer()``.
+
+    *ascii_accidentals* controls whether accidentals are output as ``#``/``b``
+    (``True``) or the proper Unicode symbols ``♯``/``♭`` (``False``).  Pass
+    ``None`` (the default) to use the renderer's own default — currently
+    ``True`` for ``TextRenderer`` and ``False`` for all others.
 
     Raises ``ValueError`` for unknown format names.
     """
@@ -104,13 +110,14 @@ def render(
         raise ValueError(
             f"Unknown format {format!r}. Registered formats: {registered}"
         ) from None
-    return renderer_cls().render(song, semi_to_name)
+    return renderer_cls._make(ascii_accidentals).render(song, semi_to_name)
 
 
 def render_many(
     songs: list[Song],
     semi_to_name: dict | None = None,
     format: str = "html",
+    ascii_accidentals: bool | None = None,
 ) -> Any:
     """Render multiple *songs* as a single combined output using *format*.
 
@@ -125,6 +132,8 @@ def render_many(
     renderers that do not override ``render_many()`` receive a list of
     individual ``render()`` results.
 
+    *ascii_accidentals* behaves as in ``render()``.
+
     Raises ``ValueError`` for unknown format names.
     """
     try:
@@ -134,7 +143,7 @@ def render_many(
         raise ValueError(
             f"Unknown format {format!r}. Registered formats: {registered}"
         ) from None
-    return renderer_cls().render_many(songs, semi_to_name)
+    return renderer_cls._make(ascii_accidentals).render_many(songs, semi_to_name)
 
 
 # ---------------------------------------------------------------------------

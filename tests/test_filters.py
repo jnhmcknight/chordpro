@@ -31,7 +31,7 @@ class TestChordproFilter:
         with app.test_request_context("/"):
             filt = app.jinja_env.filters["chordpro"]
             result = filt("[Bb]word")
-        assert ">Bb<" in result
+        assert ">B♭<" in result
 
     def test_latin_notation_via_g(self, app):
         with app.test_request_context("/"):
@@ -103,17 +103,17 @@ class TestFormatKeyFilter:
     def test_all_major_keys_standard(self, app):
         expected = {
             0: "A",
-            1: "Bb",
+            1: "B♭",
             2: "B",
             3: "C",
-            4: "C#",
+            4: "C♯",
             5: "D",
-            6: "D#",
+            6: "D♯",
             7: "E",
             8: "F",
-            9: "F#",
+            9: "F♯",
             10: "G",
-            11: "Ab",
+            11: "A♭",
         }
         with app.test_request_context("/"):
             filt = app.jinja_env.filters["format_key"]
@@ -122,16 +122,16 @@ class TestFormatKeyFilter:
 
     def test_all_minor_keys_standard(self, app):
         expected = {
-            12: "F#m",
+            12: "F♯m",
             13: "Gm",
-            14: "G#m",
+            14: "G♯m",
             15: "Am",
-            16: "Bbm",
+            16: "B♭m",
             17: "Bm",
             18: "Cm",
-            19: "C#m",
+            19: "C♯m",
             20: "Dm",
-            21: "D#m",
+            21: "D♯m",
             22: "Em",
             23: "Fm",
         }

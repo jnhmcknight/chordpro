@@ -741,3 +741,212 @@ class TestRenderManyDispatch:
 
         register_renderer("multi", MultiRenderer)
         assert render_many([Song(), Song()], format="multi") == "MULTI:2"
+
+
+# ---------------------------------------------------------------------------
+# ascii_accidentals — BaseRenderer helpers
+# ---------------------------------------------------------------------------
+
+
+class TestFinalizeChord:
+    """Unit tests for BaseRenderer._finalize_chord."""
+
+    def test_unicode_mode_passes_through_sharp(self):
+        r = HtmlRenderer(ascii_accidentals=False)
+        assert r._finalize_chord("F♯") == "F♯"
+
+    def test_unicode_mode_passes_through_flat(self):
+        r = HtmlRenderer(ascii_accidentals=False)
+        assert r._finalize_chord("B♭") == "B♭"
+
+    def test_ascii_mode_converts_sharp(self):
+        r = HtmlRenderer(ascii_accidentals=True)
+        assert r._finalize_chord("F♯") == "F#"
+
+    def test_ascii_mode_converts_flat(self):
+        r = HtmlRenderer(ascii_accidentals=True)
+        assert r._finalize_chord("B♭") == "Bb"
+
+    def test_ascii_mode_natural_note_unchanged(self):
+        r = HtmlRenderer(ascii_accidentals=True)
+        assert r._finalize_chord("G") == "G"
+
+    def test_ascii_mode_suffix_preserved(self):
+        r = HtmlRenderer(ascii_accidentals=True)
+        assert r._finalize_chord("B♭m7") == "Bbm7"
+
+
+class TestMakeClassmethod:
+    def test_none_uses_html_default(self):
+        r = HtmlRenderer._make(None)
+        assert r.ascii_accidentals is False
+
+    def test_none_uses_text_default(self):
+        r = TextRenderer._make(None)
+        assert r.ascii_accidentals is True
+
+    def test_explicit_true_overrides_html_default(self):
+        r = HtmlRenderer._make(True)
+        assert r.ascii_accidentals is True
+
+    def test_explicit_false_overrides_text_default(self):
+        r = TextRenderer._make(False)
+        assert r.ascii_accidentals is False
+
+
+# ---------------------------------------------------------------------------
+# ascii_accidentals — renderer defaults
+# ---------------------------------------------------------------------------
+
+# A standard-notation semi_to_name so B♭ and F♯ appear in output.
+_STD = build_chord_semi_to_name("standard")
+
+
+class TestTextRendererAsciiDefaults:
+    """TextRenderer defaults to ASCII accidentals."""
+
+    def test_default_is_ascii(self):
+        assert TextRenderer().ascii_accidentals is True
+
+    def test_flat_chord_output_ascii_by_default(self):
+        cl = chord_line(Segment("Bb", "word"))
+        result = TextRenderer().render(song(cl), _STD)
+        assert "Bb" in result
+        assert "♭" not in result
+
+    def test_sharp_chord_output_ascii_by_default(self):
+        cl = chord_line(Segment("F#", "word"))
+        result = TextRenderer().render(song(cl), _STD)
+        assert "F#" in result
+        assert "♯" not in result
+
+    def test_unicode_override_outputs_flat_symbol(self):
+        cl = chord_line(Segment("Bb", "word"))
+        result = TextRenderer(ascii_accidentals=False).render(song(cl), _STD)
+        assert "B♭" in result
+        assert "Bb" not in result
+
+    def test_unicode_override_outputs_sharp_symbol(self):
+        cl = chord_line(Segment("F#", "word"))
+        result = TextRenderer(ascii_accidentals=False).render(song(cl), _STD)
+        assert "F♯" in result
+        assert "F#" not in result
+
+
+class TestHtmlRendererAsciiDefaults:
+    """HtmlRenderer defaults to Unicode accidentals."""
+
+    def test_default_is_unicode(self):
+        assert HtmlRenderer().ascii_accidentals is False
+
+    def test_flat_chord_output_unicode_by_default(self):
+        cl = chord_line(Segment("Bb", "word"))
+        result = HtmlRenderer().render(song(cl), _STD)
+        assert ">B♭<" in result
+
+    def test_sharp_chord_output_unicode_by_default(self):
+        cl = chord_line(Segment("F#", "word"))
+        result = HtmlRenderer().render(song(cl), _STD)
+        assert ">F♯<" in result
+
+    def test_ascii_override_flat(self):
+        cl = chord_line(Segment("Bb", "word"))
+        result = HtmlRenderer(ascii_accidentals=True).render(song(cl), _STD)
+        assert ">Bb<" in result
+        assert "♭" not in result
+
+    def test_ascii_override_sharp(self):
+        cl = chord_line(Segment("F#", "word"))
+        result = HtmlRenderer(ascii_accidentals=True).render(song(cl), _STD)
+        assert ">F#<" in result
+        assert "♯" not in result
+
+
+class TestQuillDeltaRendererAsciiDefaults:
+    """QuillDeltaRenderer defaults to Unicode accidentals."""
+
+    def test_default_is_unicode(self):
+        assert QuillDeltaRenderer().ascii_accidentals is False
+
+    def test_flat_chord_unicode_by_default(self):
+        cl = chord_line(Segment("Bb", "word"))
+        ops = QuillDeltaRenderer().render(song(cl), _STD)["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "B♭"
+
+    def test_sharp_chord_unicode_by_default(self):
+        cl = chord_line(Segment("F#", "word"))
+        ops = QuillDeltaRenderer().render(song(cl), _STD)["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "F♯"
+
+    def test_ascii_override_flat(self):
+        cl = chord_line(Segment("Bb", "word"))
+        ops = QuillDeltaRenderer(ascii_accidentals=True).render(song(cl), _STD)["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "Bb"
+
+    def test_ascii_override_sharp(self):
+        cl = chord_line(Segment("F#", "word"))
+        ops = QuillDeltaRenderer(ascii_accidentals=True).render(song(cl), _STD)["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "F#"
+
+
+# ---------------------------------------------------------------------------
+# ascii_accidentals — render() / render_many() dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestRenderDispatchAsciiAccidentals:
+    _cl = chord_line(Segment("Bb", "word"))
+
+    def test_text_none_uses_ascii_default(self):
+        result = render(song(self._cl), _STD, format="text", ascii_accidentals=None)
+        assert "Bb" in result
+        assert "♭" not in result
+
+    def test_text_explicit_false_uses_unicode(self):
+        result = render(song(self._cl), _STD, format="text", ascii_accidentals=False)
+        assert "B♭" in result
+
+    def test_html_none_uses_unicode_default(self):
+        result = render(song(self._cl), _STD, format="html", ascii_accidentals=None)
+        assert ">B♭<" in result
+
+    def test_html_explicit_true_uses_ascii(self):
+        result = render(song(self._cl), _STD, format="html", ascii_accidentals=True)
+        assert ">Bb<" in result
+        assert "♭" not in result
+
+    def test_quill_delta_none_uses_unicode_default(self):
+        ops = render(song(self._cl), _STD, format="quill-delta", ascii_accidentals=None)["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "B♭"
+
+    def test_quill_delta_explicit_true_uses_ascii(self):
+        ops = render(song(self._cl), _STD, format="quill-delta", ascii_accidentals=True)["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "Bb"
+
+
+class TestRenderManyDispatchAsciiAccidentals:
+    _cl = chord_line(Segment("F#", "word"))
+
+    def test_html_none_uses_unicode_default(self):
+        result = render_many([song(self._cl)], _STD, format="html", ascii_accidentals=None)
+        assert ">F♯<" in result
+
+    def test_html_explicit_true_uses_ascii(self):
+        result = render_many([song(self._cl)], _STD, format="html", ascii_accidentals=True)
+        assert ">F#<" in result
+        assert "♯" not in result
+
+    def test_text_none_uses_ascii_default(self):
+        result = render_many([song(self._cl)], _STD, format="text", ascii_accidentals=None)
+        assert "F#" in result
+        assert "♯" not in result
+
+    def test_text_explicit_false_uses_unicode(self):
+        result = render_many([song(self._cl)], _STD, format="text", ascii_accidentals=False)
+        assert "F♯" in result

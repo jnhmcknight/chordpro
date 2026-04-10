@@ -67,7 +67,7 @@ class QuillDeltaRenderer(BaseRenderer):
         if isinstance(line, ChordLine):
             for seg in line.segments:
                 if seg.chord is not None:
-                    chord = (
+                    chord = self._finalize_chord(
                         _convert_chord_root(seg.chord, semi_to_name)
                         if semi_to_name
                         else seg.chord

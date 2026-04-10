@@ -30,6 +30,7 @@ class _ChordLineFlowable:
         chord_color,
         gap: float = 1,
         seg_pad: float = 4,
+        ascii_accidentals: bool = False,
     ) -> None:
         from reportlab.platypus.flowables import Flowable
 
@@ -47,16 +48,22 @@ class _ChordLineFlowable:
         self.chord_color = chord_color
         self.gap = gap
         self.seg_pad = seg_pad
+        self.ascii_accidentals = ascii_accidentals
         self._instance = self._build()
 
     def _get_chord(self, seg) -> str | None:
+        from ..constants import FLAT, SHARP
+
         if seg.chord is None:
             return None
-        return (
+        chord = (
             _convert_chord_root(seg.chord, self.semi_to_name)
             if self.semi_to_name
             else seg.chord
         )
+        if self.ascii_accidentals:
+            chord = chord.replace(SHARP, "#").replace(FLAT, "b")
+        return chord
 
     def _build(self):
         from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -349,6 +356,7 @@ class PdfRenderer(BaseRenderer):
             lyric_font=self.LYRIC_FONT,
             lyric_size=self.LYRIC_SIZE,
             chord_color=chord_color,
+            ascii_accidentals=self.ascii_accidentals,
         ).get()
 
     def _line_to_flowable(

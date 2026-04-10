@@ -22,23 +22,23 @@ class TestNashvilleChromatic:
     def test_diatonic_degrees_are_plain_numbers(self):
         diatonic_offsets = {0, 2, 4, 5, 7, 9, 11}
         for offset in diatonic_offsets:
-            assert _NASHVILLE_CHROMATIC[offset].lstrip("b#").isdigit()
-            assert not _NASHVILLE_CHROMATIC[offset].startswith(("b", "#"))
+            assert _NASHVILLE_CHROMATIC[offset].lstrip("♭♯").isdigit()
+            assert not _NASHVILLE_CHROMATIC[offset].startswith(("♭", "♯"))
 
     def test_chromatic_degrees_have_accidental(self):
         chromatic_offsets = {1, 3, 6, 8, 10}
         for offset in chromatic_offsets:
-            assert _NASHVILLE_CHROMATIC[offset][0] in ("b", "#")
+            assert _NASHVILLE_CHROMATIC[offset][0] in ("♭", "♯")
 
     def test_tonic_is_1(self):
         assert _NASHVILLE_CHROMATIC[0] == "1"
 
     def test_tritone_is_sharp_4(self):
-        # Nashville convention: tritone = #4, not b5
-        assert _NASHVILLE_CHROMATIC[6] == "#4"
+        # Nashville convention: tritone = ♯4, not ♭5
+        assert _NASHVILLE_CHROMATIC[6] == "♯4"
 
     def test_minor_seventh_is_flat_7(self):
-        assert _NASHVILLE_CHROMATIC[10] == "b7"
+        assert _NASHVILLE_CHROMATIC[10] == "♭7"
 
 
 # ---------------------------------------------------------------------------
@@ -168,8 +168,8 @@ class TestNashvilleChordConversion:
         assert ">57<" in self._html("[G7]word", key="C")
 
     def test_flat_seventh_chord(self):
-        # Bb in key of C = b7
-        assert ">b7<" in self._html("[Bb]word", key="C")
+        # Bb in key of C = ♭7
+        assert ">♭7<" in self._html("[Bb]word", key="C")
 
     def test_data_chord_still_standard(self):
         # data-chord must retain the original standard notation
@@ -184,8 +184,8 @@ class TestNashvilleChordConversion:
         assert ">4<" in self._html("[C]word", key="G")
 
     def test_sharp_chord_in_key(self):
-        # C# in key of C = b2
-        assert ">b2<" in self._html("[C#]word", key="C")
+        # C# in key of C = ♭2
+        assert ">♭2<" in self._html("[C#]word", key="C")
 
 
 # ---------------------------------------------------------------------------

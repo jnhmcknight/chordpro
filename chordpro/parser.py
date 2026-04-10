@@ -10,7 +10,9 @@ are also used at render time.
 import re
 
 from .constants import (
+    FLAT,
     KEY_NAMES,
+    SHARP,
     _CP_SECTION_LABELS,
     _NASHVILLE_CHROMATIC,
     _SHORT_FORM_DIRECTIVES,
@@ -123,7 +125,7 @@ def key_to_semitone(key: str) -> int:
     """
     # Strip trailing minor marker so "Am" → "A", "F#m" → "F#"
     root = key.strip().rstrip("m")
-    return _STANDARD_NOTE_TO_SEMI.get(root, 0)
+    return _STANDARD_NOTE_TO_SEMI.get(_normalize_accidental(root), 0)
 
 
 def build_nashville_semi_to_name(key_semitone: int) -> dict[int, str]:
@@ -142,16 +144,22 @@ def build_nashville_semi_to_name(key_semitone: int) -> dict[int, str]:
     }
 
 
+def _normalize_accidental(root: str) -> str:
+    """Normalize ASCII accidentals to proper symbols (e.g. ``C#`` → ``C♯``)."""
+    return root.replace("#", SHARP).replace("b", FLAT)
+
+
 def _convert_chord_root(chord: str, semi_to_name: dict[int, str]) -> str:
     """Translate the root note of *chord* into the target notation."""
-    m = re.match(r"^([A-G][#b]?)(.*)", chord, re.DOTALL)
+    m = re.match(r"^([A-G][#b♯♭]?)(.*)", chord, re.DOTALL)
     if not m:
         return chord
     root, rest = m.group(1), m.group(2)
-    semi = _STANDARD_NOTE_TO_SEMI.get(root)
+    root_normalized = _normalize_accidental(root)
+    semi = _STANDARD_NOTE_TO_SEMI.get(root_normalized)
     if semi is None:
         return chord
-    return semi_to_name.get(semi, root) + rest
+    return semi_to_name.get(semi, root_normalized) + rest
 
 
 def _parse_chord_line(line: str) -> ChordLine:
