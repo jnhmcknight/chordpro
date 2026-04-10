@@ -32,3 +32,23 @@ def test_multiple_apps_independent():
     ext.init_app(app2)
     assert "chordpro" in app1.extensions
     assert "chordpro" in app2.extensions
+
+
+def test_chordpro_filter_accepts_renderer_instance(app):
+    """Passing a BaseRenderer instance as format should call renderer.render()."""
+    from chordpro.renderers import TextRenderer
+
+    renderer = TextRenderer()
+    with app.test_request_context("/"):
+        f = app.jinja_env.filters["chordpro"]
+        result = f("[G]Amazing grace\n", format=renderer)
+    # TextRenderer returns a str (not Markup), and contains the lyric text
+    assert isinstance(result, str)
+    assert "Amazing" in result
+
+
+def test_chordpro_filter_empty_content_returns_empty(app):
+    with app.test_request_context("/"):
+        f = app.jinja_env.filters["chordpro"]
+        assert f("") == ""
+        assert f(None) == ""

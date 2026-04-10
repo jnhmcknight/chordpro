@@ -331,3 +331,36 @@ class TestPdfRendererMany:
             song(LyricLine("song two")),
         ]
         assert valid_pdf(self.renderer.render_many(songs))
+
+
+# ---------------------------------------------------------------------------
+# ascii_accidentals in PdfRenderer
+# ---------------------------------------------------------------------------
+
+
+class TestPdfRendererAsciiAccidentals:
+    def test_ascii_accidentals_true_produces_valid_pdf(self):
+        renderer = PdfRenderer(ascii_accidentals=True)
+        # Unicode sharp in chord — renderer should convert it internally
+        result = renderer.render(song(chord_line(Segment("F♯", "word"))))
+        assert valid_pdf(result)
+
+    def test_ascii_accidentals_with_notation(self):
+        renderer = PdfRenderer(ascii_accidentals=True)
+        semi = build_chord_semi_to_name("standard")
+        result = renderer.render(song(chord_line(Segment("Bb", "word"))), semi)
+        assert valid_pdf(result)
+
+
+# ---------------------------------------------------------------------------
+# Unknown line types in PdfRenderer._line_to_flowable
+# ---------------------------------------------------------------------------
+
+
+class TestPdfRendererUnknownLines:
+    def test_unknown_line_type_is_skipped(self):
+        from chordpro.models import GridOn
+
+        # GridOn is not handled by _line_to_flowable; result should still be a valid PDF
+        result = PdfRenderer().render(song(GridOn()))
+        assert valid_pdf(result)

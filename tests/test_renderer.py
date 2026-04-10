@@ -950,3 +950,59 @@ class TestRenderManyDispatchAsciiAccidentals:
     def test_text_explicit_false_uses_unicode(self):
         result = render_many([song(self._cl)], _STD, format="text", ascii_accidentals=False)
         assert "F♯" in result
+
+
+# ---------------------------------------------------------------------------
+# QuillDeltaRenderer — additional line types
+# ---------------------------------------------------------------------------
+
+
+class TestQuillDeltaRendererLineTypes:
+    """Cover line types not exercised by TestQuillDeltaRenderer."""
+
+    renderer = QuillDeltaRenderer()
+
+    def test_comment_italic_is_italic(self):
+        ops = self.renderer.render(song(CommentItalic("slanted")))["ops"]
+        text_op = next(op for op in ops if op.get("insert") == "slanted")
+        assert text_op.get("attributes", {}).get("italic") is True
+
+    def test_comment_box_is_italic(self):
+        ops = self.renderer.render(song(CommentBox("boxed")))["ops"]
+        text_op = next(op for op in ops if op.get("insert") == "boxed")
+        assert text_op.get("attributes", {}).get("italic") is True
+
+    def test_new_page_is_page_break_op(self):
+        ops = self.renderer.render(song(NewPage()))["ops"]
+        assert any(op.get("attributes", {}).get("page_break") for op in ops)
+
+    def test_section_lines_are_rendered(self):
+        # Exercises _render_section → _render_line for lines within a section
+        v = Verse(label="Verse 1", lines=[LyricLine("some words")])
+        ops = self.renderer.render(song(v))["ops"]
+        texts = [op["insert"] for op in ops]
+        assert "some words" in texts
+
+    def test_section_in_render_many_lines_rendered(self):
+        # Exercises render_many path through _render_section → _render_line
+        v = Verse(label="V", lines=[LyricLine("verse text")])
+        ops = self.renderer.render_many([song(v)])["ops"]
+        texts = [op["insert"] for op in ops]
+        assert "verse text" in texts
+
+
+# ---------------------------------------------------------------------------
+# TextRenderer — unknown line types
+# ---------------------------------------------------------------------------
+
+
+class TestTextRendererUnknownLines:
+    renderer = TextRenderer()
+
+    def test_unknown_line_type_is_skipped(self):
+        # GridOn is not handled by TextRenderer._render_line — it returns None
+        # and the renderer omits it, yielding an empty string.
+        from chordpro.models import GridOn
+
+        result = self.renderer.render(song(GridOn()))
+        assert result == ""

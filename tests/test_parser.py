@@ -88,6 +88,12 @@ class TestConvertChordRoot:
         s = build_chord_semi_to_name("standard")
         assert _convert_chord_root("B♭", s) == "B♭"
 
+    def test_unrecognised_accidental_passthrough(self):
+        # "Cb" normalizes to "C♭" which is not in _STANDARD_NOTE_TO_SEMI;
+        # _convert_chord_root should return the original chord unchanged.
+        s = build_chord_semi_to_name("standard")
+        assert _convert_chord_root("Cb", s) == "Cb"
+
 
 # ---------------------------------------------------------------------------
 # _normalize_accidental
@@ -340,3 +346,33 @@ class TestShortFormDirectives:
         section = song.body[0]
         assert isinstance(section, Verse)
         assert section.label == "Verse 1"
+
+
+# ---------------------------------------------------------------------------
+# _directive_to_item edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestDirectiveEdgeCases:
+    def test_invalid_transpose_value_gives_none_semitones(self):
+        from chordpro.models import Transpose
+
+        song = parse("{transpose: abc}")
+        assert len(song.body) == 1
+        item = song.body[0]
+        assert isinstance(item, Transpose)
+        assert item.semitones is None
+
+    def test_invalid_columns_value_defaults_to_one(self):
+        from chordpro.models import Columns
+
+        song = parse("{columns: bad}")
+        assert len(song.body) == 1
+        item = song.body[0]
+        assert isinstance(item, Columns)
+        assert item.count == 1
+
+    def test_unknown_directive_is_silently_ignored(self):
+        # {frobnicate: value} is not a known directive — body should be empty.
+        song = parse("{frobnicate: some value}")
+        assert song.body == []
