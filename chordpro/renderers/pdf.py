@@ -182,9 +182,40 @@ class PdfRenderer(BaseRenderer):
     CHORUS_REF_FONT = "Helvetica-Oblique"
     CHORUS_REF_SIZE = 10
 
+    # --- Unicode font support -----------------------------------------------
+    # The built-in Helvetica fonts are Latin-1 only and cannot render Unicode
+    # musical symbols such as ♭, ♯, and ♮.  Set UNICODE_FONT_PATH to a
+    # TTF/OTF file that covers those code points (e.g. DejaVu Sans, Noto Sans)
+    # to enable full Unicode rendering.  When None, common system locations are
+    # searched automatically before falling back to Helvetica.
+    UNICODE_FONT_PATH: str | None = None
+    UNICODE_BOLD_FONT_PATH: str | None = None
+    UNICODE_ITALIC_FONT_PATH: str | None = None
+
+    # Ordered list of paths searched when UNICODE_FONT_PATH is None.
+    _UNICODE_FONT_CANDIDATES: tuple[str, ...] = (
+        # Linux — DejaVu Sans (covers ♭ ♯ ♮)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        # macOS — Homebrew DejaVu
+        "/opt/homebrew/opt/font-dejavu/share/fonts/truetype/DejaVuSans.ttf",
+        "/usr/local/opt/font-dejavu/share/fonts/truetype/DejaVuSans.ttf",
+        # macOS — Arial Unicode MS (ships with Microsoft Office / macOS extras)
+        "/Library/Fonts/Arial Unicode MS.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf",
+        # Windows — Arial
+        "C:\\Windows\\Fonts\\arial.ttf",
+        # Noto Sans (Fedora / Ubuntu / Arch variants)
+        "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/google-noto/NotoSans-Regular.ttf",
+    )
+
     # -----------------------------------------------------------------------
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> bytes:
+        self._setup_unicode_font()
         buf, doc = self._make_doc()
         styles, chord_color = self._make_styles()
         story = self._build_song_story(song, semi_to_name, styles, chord_color)
@@ -195,6 +226,7 @@ class PdfRenderer(BaseRenderer):
         """Render multiple *songs* into a single PDF.  Each song starts on a new page."""
         from reportlab.platypus import PageBreak
 
+        self._setup_unicode_font()
         buf, doc = self._make_doc()
         styles, chord_color = self._make_styles()
         story = []
@@ -206,6 +238,95 @@ class PdfRenderer(BaseRenderer):
             )
         doc.build(story)
         return buf.getvalue()
+
+    # -----------------------------------------------------------------------
+    # Unicode font helpers
+    # -----------------------------------------------------------------------
+
+    def _setup_unicode_font(self) -> None:
+        """Register a Unicode TTF font and remap all renderer font attributes.
+
+        Called automatically by :meth:`render` and :meth:`render_many`.  Sets
+        instance-level font name attributes so that :meth:`_make_styles` and
+        the chord-line flowable pick up the TTF font instead of Helvetica.
+        Has no effect if no suitable font file can be found.
+        """
+        import os
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+
+        regular = self.UNICODE_FONT_PATH or self._find_unicode_font()
+        if regular is None:
+            return
+
+        try:
+            pdfmetrics.registerFont(TTFont("CPSans", regular))
+        except Exception:
+            return  # corrupt / unsupported file — keep Helvetica
+
+        bold_path = self.UNICODE_BOLD_FONT_PATH or self._derive_font_variant(
+            regular, bold=True
+        )
+        italic_path = self.UNICODE_ITALIC_FONT_PATH or self._derive_font_variant(
+            regular, italic=True
+        )
+
+        bold_name = "CPSans"
+        italic_name = "CPSans"
+
+        if bold_path:
+            try:
+                pdfmetrics.registerFont(TTFont("CPSans-Bold", bold_path))
+                bold_name = "CPSans-Bold"
+            except Exception:
+                pass
+
+        if italic_path:
+            try:
+                pdfmetrics.registerFont(TTFont("CPSans-Italic", italic_path))
+                italic_name = "CPSans-Italic"
+            except Exception:
+                pass
+
+        self.TITLE_FONT = bold_name
+        self.SUBTITLE_FONT = "CPSans"
+        self.ARTIST_FONT = italic_name
+        self.META_FONT = "CPSans"
+        self.SECTION_LABEL_FONT = bold_name
+        self.CHORD_FONT = bold_name
+        self.LYRIC_FONT = "CPSans"
+        self.COMMENT_FONT = italic_name
+        self.CHORUS_REF_FONT = italic_name
+
+    @classmethod
+    def _find_unicode_font(cls) -> str | None:
+        """Return the first candidate font path that exists on this system."""
+        import os
+
+        return next(
+            (p for p in cls._UNICODE_FONT_CANDIDATES if os.path.isfile(p)), None
+        )
+
+    @staticmethod
+    def _derive_font_variant(
+        regular: str, *, bold: bool = False, italic: bool = False
+    ) -> str | None:
+        """Infer a bold or italic TTF path from the regular font path.
+
+        Tries common naming conventions (DejaVu, Noto, Windows Arial) in the
+        same directory as *regular*.  Returns *None* if no file is found.
+        """
+        import os
+
+        stem, ext = os.path.splitext(regular)
+        # Strip trailing "-Regular" so "NotoSans-Regular" → "NotoSans"
+        base = stem[: -len("-Regular")] if stem.endswith("-Regular") else stem
+        suffixes = ("-Bold", "bd", "b") if bold else ("-Oblique", "-Italic", "i")
+        for suf in suffixes:
+            candidate = base + suf + ext
+            if os.path.isfile(candidate):
+                return candidate
+        return None
 
     # -----------------------------------------------------------------------
     # Internal helpers
@@ -383,7 +504,7 @@ class PdfRenderer(BaseRenderer):
 
             highlight_style = ParagraphStyle(
                 "CPHighlight",
-                fontName="Helvetica-Bold",
+                fontName=self.SECTION_LABEL_FONT,
                 fontSize=self.LYRIC_SIZE,
                 spaceAfter=0,
             )

@@ -425,6 +425,35 @@ class MyRenderer(PdfRenderer):
     CHORD_SIZE = 10
 ```
 
+#### Unicode font support
+
+The built-in Helvetica fonts used by reportlab are Latin-1 only and cannot render Unicode musical symbols such as ♭, ♯, and ♮. `PdfRenderer` automatically searches common system locations for a Unicode-capable TTF font at render time (DejaVu Sans, Arial Unicode MS, Noto Sans) and uses it when found. If no suitable font is detected, rendering falls back to Helvetica silently.
+
+To use a specific font, set `UNICODE_FONT_PATH` on a subclass:
+
+```python
+from chordpro import PdfRenderer
+
+class MyRenderer(PdfRenderer):
+    UNICODE_FONT_PATH = "/path/to/DejaVuSans.ttf"
+    UNICODE_BOLD_FONT_PATH = "/path/to/DejaVuSans-Bold.ttf"       # optional
+    UNICODE_ITALIC_FONT_PATH = "/path/to/DejaVuSans-Oblique.ttf"  # optional
+```
+
+`UNICODE_BOLD_FONT_PATH` and `UNICODE_ITALIC_FONT_PATH` are inferred automatically from the regular font path when not set — for example, `DejaVuSans.ttf` → `DejaVuSans-Bold.ttf` and `DejaVuSans-Oblique.ttf`. Set them explicitly if auto-inference does not match your font's naming convention.
+
+Fonts searched automatically (in order):
+
+| Platform | Font |
+|----------|------|
+| Linux | DejaVu Sans (`/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf` and common variants) |
+| macOS (Homebrew) | DejaVu Sans (`/opt/homebrew/opt/font-dejavu/…`) |
+| macOS | Arial Unicode MS (`/Library/Fonts/` or `/System/Library/Fonts/Supplemental/`) |
+| Windows | Arial (`C:\Windows\Fonts\arial.ttf`) |
+| Linux (Noto) | Noto Sans (`/usr/share/fonts/noto/NotoSans-Regular.ttf` and common variants) |
+
+> **Note:** The double-sharp (𝄪) and double-flat (𝄫) symbols sit in the Supplementary Multilingual Plane (U+1D12A / U+1D12B). DejaVu Sans does not cover these glyphs; Noto Music or GNU FreeFont do.
+
 ### Custom renderers
 
 Subclass `BaseRenderer`, implement `render()`, and register the class under a name. Once registered, the name works as the `format` argument to `render()`, `render_many()`, and the `chordpro` Jinja2 filter.

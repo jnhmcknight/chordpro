@@ -364,3 +364,190 @@ class TestPdfRendererUnknownLines:
         # GridOn is not handled by _line_to_flowable; result should still be a valid PDF
         result = PdfRenderer().render(song(GridOn()))
         assert valid_pdf(result)
+
+
+# ---------------------------------------------------------------------------
+# Unicode font helpers
+# ---------------------------------------------------------------------------
+
+
+class TestFindUnicodeFont:
+    def test_returns_none_when_no_candidates(self, monkeypatch):
+        monkeypatch.setattr(PdfRenderer, "_UNICODE_FONT_CANDIDATES", ())
+        assert PdfRenderer._find_unicode_font() is None
+
+    def test_returns_first_existing_path(self, tmp_path, monkeypatch):
+        font = tmp_path / "MyFont.ttf"
+        font.write_bytes(b"")
+        monkeypatch.setattr(PdfRenderer, "_UNICODE_FONT_CANDIDATES", (str(font),))
+        assert PdfRenderer._find_unicode_font() == str(font)
+
+    def test_skips_missing_paths(self, tmp_path, monkeypatch):
+        missing = str(tmp_path / "missing.ttf")
+        present = tmp_path / "present.ttf"
+        present.write_bytes(b"")
+        monkeypatch.setattr(
+            PdfRenderer, "_UNICODE_FONT_CANDIDATES", (missing, str(present))
+        )
+        assert PdfRenderer._find_unicode_font() == str(present)
+
+
+class TestDeriveVariant:
+    def test_bold_dash_suffix(self, tmp_path):
+        regular = tmp_path / "MyFont.ttf"
+        bold = tmp_path / "MyFont-Bold.ttf"
+        regular.write_bytes(b"")
+        bold.write_bytes(b"")
+        assert PdfRenderer._derive_font_variant(str(regular), bold=True) == str(bold)
+
+    def test_bold_bd_suffix(self, tmp_path):
+        regular = tmp_path / "arial.ttf"
+        bold = tmp_path / "arialbd.ttf"
+        regular.write_bytes(b"")
+        bold.write_bytes(b"")
+        assert PdfRenderer._derive_font_variant(str(regular), bold=True) == str(bold)
+
+    def test_italic_oblique_suffix(self, tmp_path):
+        regular = tmp_path / "MyFont.ttf"
+        oblique = tmp_path / "MyFont-Oblique.ttf"
+        regular.write_bytes(b"")
+        oblique.write_bytes(b"")
+        assert PdfRenderer._derive_font_variant(str(regular), italic=True) == str(oblique)
+
+    def test_italic_italic_suffix(self, tmp_path):
+        regular = tmp_path / "MyFont.ttf"
+        italic = tmp_path / "MyFont-Italic.ttf"
+        regular.write_bytes(b"")
+        italic.write_bytes(b"")
+        assert PdfRenderer._derive_font_variant(str(regular), italic=True) == str(italic)
+
+    def test_strips_regular_before_deriving(self, tmp_path):
+        regular = tmp_path / "NotoSans-Regular.ttf"
+        bold = tmp_path / "NotoSans-Bold.ttf"
+        regular.write_bytes(b"")
+        bold.write_bytes(b"")
+        assert PdfRenderer._derive_font_variant(str(regular), bold=True) == str(bold)
+
+    def test_returns_none_when_no_variant_found(self, tmp_path):
+        regular = tmp_path / "MyFont.ttf"
+        regular.write_bytes(b"")
+        assert PdfRenderer._derive_font_variant(str(regular), bold=True) is None
+
+
+class TestSetupUnicodeFont:
+    """Tests for _setup_unicode_font().
+
+    TTFont and pdfmetrics.registerFont are mocked so no real font file is
+    needed; the mocks allow us to verify that the renderer's font name
+    attributes are remapped correctly.
+    """
+
+    def _patch_reportlab(self, monkeypatch, registered=None):
+        """Replace TTFont constructor and registerFont with lightweight stubs."""
+        if registered is None:
+            registered = []
+        monkeypatch.setattr(
+            "reportlab.pdfbase.ttfonts.TTFont",
+            lambda name, path: name,
+        )
+        monkeypatch.setattr(
+            "reportlab.pdfbase.pdfmetrics.registerFont",
+            lambda f: registered.append(f),
+        )
+        return registered
+
+    def test_no_font_found_keeps_helvetica_defaults(self, monkeypatch):
+        monkeypatch.setattr(PdfRenderer, "_UNICODE_FONT_CANDIDATES", ())
+        renderer = PdfRenderer()
+        renderer._setup_unicode_font()
+        assert renderer.LYRIC_FONT == "Helvetica"
+        assert renderer.TITLE_FONT == "Helvetica-Bold"
+        assert renderer.ARTIST_FONT == "Helvetica-Oblique"
+
+    def test_remaps_all_font_attributes(self, tmp_path, monkeypatch):
+        regular = tmp_path / "MyFont.ttf"
+        bold = tmp_path / "MyFont-Bold.ttf"
+        oblique = tmp_path / "MyFont-Oblique.ttf"
+        for f in (regular, bold, oblique):
+            f.write_bytes(b"")
+        self._patch_reportlab(monkeypatch)
+
+        renderer = PdfRenderer()
+        renderer.UNICODE_FONT_PATH = str(regular)
+        renderer._setup_unicode_font()
+
+        assert renderer.LYRIC_FONT == "CPSans"
+        assert renderer.TITLE_FONT == "CPSans-Bold"
+        assert renderer.SUBTITLE_FONT == "CPSans"
+        assert renderer.ARTIST_FONT == "CPSans-Italic"
+        assert renderer.META_FONT == "CPSans"
+        assert renderer.SECTION_LABEL_FONT == "CPSans-Bold"
+        assert renderer.CHORD_FONT == "CPSans-Bold"
+        assert renderer.COMMENT_FONT == "CPSans-Italic"
+        assert renderer.CHORUS_REF_FONT == "CPSans-Italic"
+
+    def test_no_variants_falls_back_to_regular(self, tmp_path, monkeypatch):
+        regular = tmp_path / "MyFont.ttf"
+        regular.write_bytes(b"")
+        self._patch_reportlab(monkeypatch)
+
+        renderer = PdfRenderer()
+        renderer.UNICODE_FONT_PATH = str(regular)
+        renderer._setup_unicode_font()
+
+        assert renderer.TITLE_FONT == "CPSans"
+        assert renderer.ARTIST_FONT == "CPSans"
+        assert renderer.LYRIC_FONT == "CPSans"
+
+    def test_registers_three_fonts_when_variants_exist(self, tmp_path, monkeypatch):
+        regular = tmp_path / "MyFont.ttf"
+        bold = tmp_path / "MyFont-Bold.ttf"
+        oblique = tmp_path / "MyFont-Oblique.ttf"
+        for f in (regular, bold, oblique):
+            f.write_bytes(b"")
+        registered = self._patch_reportlab(monkeypatch)
+
+        renderer = PdfRenderer()
+        renderer.UNICODE_FONT_PATH = str(regular)
+        renderer._setup_unicode_font()
+
+        assert registered == ["CPSans", "CPSans-Bold", "CPSans-Italic"]
+
+    def test_explicit_bold_italic_paths_used(self, tmp_path, monkeypatch):
+        for name in ("regular.ttf", "bold.ttf", "italic.ttf"):
+            (tmp_path / name).write_bytes(b"")
+        registered = self._patch_reportlab(monkeypatch)
+
+        renderer = PdfRenderer()
+        renderer.UNICODE_FONT_PATH = str(tmp_path / "regular.ttf")
+        renderer.UNICODE_BOLD_FONT_PATH = str(tmp_path / "bold.ttf")
+        renderer.UNICODE_ITALIC_FONT_PATH = str(tmp_path / "italic.ttf")
+        renderer._setup_unicode_font()
+
+        assert registered == ["CPSans", "CPSans-Bold", "CPSans-Italic"]
+
+    def test_corrupt_font_keeps_helvetica_defaults(self, tmp_path, monkeypatch):
+        # Don't mock TTFont — let it fail on a non-TTF file.
+        corrupt = tmp_path / "corrupt.ttf"
+        corrupt.write_bytes(b"not a real font")
+        monkeypatch.setattr(PdfRenderer, "_UNICODE_FONT_CANDIDATES", (str(corrupt),))
+
+        renderer = PdfRenderer()
+        renderer._setup_unicode_font()
+
+        assert renderer.LYRIC_FONT == "Helvetica"
+        assert renderer.TITLE_FONT == "Helvetica-Bold"
+
+    def test_render_calls_setup_unicode_font(self, monkeypatch):
+        """render() must call _setup_unicode_font() before building the document."""
+        calls = []
+        monkeypatch.setattr(PdfRenderer, "_setup_unicode_font", lambda self: calls.append(1))
+        PdfRenderer().render(Song())
+        assert calls
+
+    def test_render_many_calls_setup_unicode_font(self, monkeypatch):
+        """render_many() must call _setup_unicode_font() before building."""
+        calls = []
+        monkeypatch.setattr(PdfRenderer, "_setup_unicode_font", lambda self: calls.append(1))
+        PdfRenderer().render_many([Song()])
+        assert calls
