@@ -67,19 +67,19 @@ _SHORT_FORM_DIRECTIVES: dict[str, str] = {
 # Diatonic major scale degrees are assigned the plain number (1–7).
 # Chromatic (non-diatonic) semitones use the flat/sharp of the nearest
 # diatonic degree following common Nashville convention (#4 for the tritone,
-# b-prefixes elsewhere).
+# ♭-prefixes elsewhere).
 _NASHVILLE_CHROMATIC: dict[int, str] = {
     0: "1",
-    1: "b2",
+    1: "♭2",
     2: "2",
-    3: "b3",
+    3: "♭3",
     4: "3",
     5: "4",
     6: "#4",
     7: "5",
-    8: "b6",
+    8: "♭6",
     9: "6",
-    10: "b7",
+    10: "♭7",
     11: "7",
 }
 
@@ -87,27 +87,27 @@ _NASHVILLE_CHROMATIC: dict[int, str] = {
 _STANDARD_NOTE_TO_SEMI = {
     "C": 0,
     "C#": 1,
-    "Db": 1,
+    "D♭": 1,
     "D": 2,
     "D#": 3,
-    "Eb": 3,
+    "E♭": 3,
     "E": 4,
     "F": 5,
     "F#": 6,
-    "Gb": 6,
+    "G♭": 6,
     "G": 7,
     "G#": 8,
-    "Ab": 8,
+    "A♭": 8,
     "A": 9,
     "A#": 10,
-    "Bb": 10,
+    "B♭": 10,
     "B": 11,
 }
 
 # Key lookup tables indexed by MajorKey/MinorKey enum integer value.
 #
-# MajorKey values : A=0  Bb=1  B=2  C=3  C#=4  D=5  D#=6  E=7  F=8  F#=9  G=10  Ab=11
-# MinorKey values : F#m=0  Gm=1  G#m=2  Am=3  Bbm=4  Bm=5  Cm=6  C#m=7  Dm=8  D#m=9  Em=10  Fm=11
+# MajorKey values : A=0  B♭=1  B=2  C=3  C#=4  D=5  D#=6  E=7  F=8  F#=9  G=10  A♭=11
+# MinorKey values : F#m=0  Gm=1  G#m=2  Am=3  B♭m=4  Bm=5  Cm=6  C#m=7  Dm=8  D#m=9  Em=10  Fm=11
 #
 # key_int 0-11  → major  (index = key_int)
 # key_int 12-23 → minor  (index = key_int - 12)
@@ -115,7 +115,7 @@ KEY_NAMES = {
     "standard": {
         "major": {
             0: "A",
-            1: "Bb",
+            1: "B♭",
             2: "B",
             3: "C",
             4: "C#",
@@ -125,14 +125,14 @@ KEY_NAMES = {
             8: "F",
             9: "F#",
             10: "G",
-            11: "Ab",
+            11: "A♭",
         },
         "minor": {
             0: "F#m",
             1: "Gm",
             2: "G#m",
             3: "Am",
-            4: "Bbm",
+            4: "B♭m",
             5: "Bm",
             6: "Cm",
             7: "C#m",
@@ -175,7 +175,7 @@ KEY_NAMES = {
     "latin": {
         "major": {
             0: "La",
-            1: "Sib",
+            1: "Si♭",
             2: "Si",
             3: "Do",
             4: "Do#",
@@ -185,14 +185,14 @@ KEY_NAMES = {
             8: "Fa",
             9: "Fa#",
             10: "Sol",
-            11: "Lab",
+            11: "La♭",
         },
         "minor": {
             0: "Fa#m",
             1: "Solm",
             2: "Sol#m",
             3: "Lam",
-            4: "Sibm",
+            4: "Si♭m",
             5: "Sim",
             6: "Dom",
             7: "Do#m",
