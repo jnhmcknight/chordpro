@@ -58,7 +58,7 @@ Then use ``{{ song.content | chordpro("pdf") }}`` in templates, or call
 """
 
 from .extensions.flask import ChordPro
-from .constants import KEY_NAMES
+from .constants import KEY_NAMES, FLAT, SHARP, DOUBLE_FLAT, DOUBLE_SHARP, NATURAL
 from .models import (
     # Content line types
     Segment,
@@ -189,4 +189,9 @@ __all__ = [
     "Song",
     # Constants
     "KEY_NAMES",
+    "FLAT",
+    "SHARP",
+    "DOUBLE_FLAT",
+    "DOUBLE_SHARP",
+    "NATURAL",
 ]
