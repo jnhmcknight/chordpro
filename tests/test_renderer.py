@@ -25,10 +25,12 @@ from chordpro.models import (
     Section,
     Segment,
     Song,
+    SongMeta,
     Transpose,
     Verse,
     Chorus,
 )
+from chordpro.models import SongMeta
 from chordpro.parser import build_chord_semi_to_name
 from chordpro.renderers import (
     BaseRenderer,
@@ -229,6 +231,81 @@ class TestHtmlRenderer:
 
 
 # ---------------------------------------------------------------------------
+# HtmlRenderer — header / footer metadata
+# ---------------------------------------------------------------------------
+
+
+class TestHtmlRendererMetadata:
+    renderer = HtmlRenderer()
+
+    def _meta_song(self, **kwargs):
+        return Song(meta=SongMeta(**kwargs))
+
+    def test_title_in_header(self):
+        result = self.renderer.render(self._meta_song(title="Amazing Grace"))
+        assert 'class="cp-title"' in result
+        assert "Amazing Grace" in result
+
+    def test_subtitle_in_header(self):
+        result = self.renderer.render(self._meta_song(subtitle=["Hymn"]))
+        assert 'class="cp-subtitle"' in result
+        assert "Hymn" in result
+
+    def test_artist_in_header(self):
+        result = self.renderer.render(self._meta_song(artist=["John Newton"]))
+        assert 'class="cp-artist"' in result
+        assert "John Newton" in result
+
+    def test_album_in_header(self):
+        result = self.renderer.render(self._meta_song(album=["Olney Hymns"]))
+        assert 'class="cp-album"' in result
+        assert "Olney Hymns" in result
+
+    def test_composer_in_header(self):
+        result = self.renderer.render(self._meta_song(composer=["William Walker"]))
+        assert 'class="cp-composer"' in result
+        assert "William Walker" in result
+
+    def test_key_in_meta_info(self):
+        result = self.renderer.render(self._meta_song(key=["G"]))
+        assert 'class="cp-meta"' in result
+        assert "Key: G" in result
+
+    def test_time_in_meta_info(self):
+        result = self.renderer.render(self._meta_song(time=["3/4"]))
+        assert "Time: 3/4" in result
+
+    def test_tempo_in_meta_info(self):
+        result = self.renderer.render(self._meta_song(tempo=["80"]))
+        assert "Tempo: 80" in result
+
+    def test_copyright_in_footer(self):
+        result = self.renderer.render(self._meta_song(copyright=["© 1779"]))
+        assert 'class="cp-copyright"' in result
+        assert "© 1779" in result
+
+    def test_footer_wraps_in_cp_footer(self):
+        result = self.renderer.render(self._meta_song(copyright=["© 1779"]))
+        assert 'class="cp-footer"' in result
+
+    def test_no_metadata_no_header(self):
+        result = self.renderer.render(Song())
+        assert 'class="cp-header"' not in result
+
+    def test_xss_in_title_escaped(self):
+        result = self.renderer.render(self._meta_song(title="<b>bold</b>"))
+        assert "<b>" not in result
+
+    def test_multiple_meta_fields(self):
+        result = self.renderer.render(
+            self._meta_song(key=["A"], time=["4/4"], tempo=["120"])
+        )
+        assert "Key: A" in result
+        assert "Time: 4/4" in result
+        assert "Tempo: 120" in result
+
+
+# ---------------------------------------------------------------------------
 # TextRenderer
 # ---------------------------------------------------------------------------
 
@@ -325,6 +402,60 @@ class TestTextRenderer:
 
 
 # ---------------------------------------------------------------------------
+# TextRenderer — header / footer metadata
+# ---------------------------------------------------------------------------
+
+
+class TestTextRendererMetadata:
+    renderer = TextRenderer()
+
+    def _meta_song(self, **kwargs):
+        return Song(meta=SongMeta(**kwargs))
+
+    def test_title_in_output(self):
+        assert "Amazing Grace" in self.renderer.render(self._meta_song(title="Amazing Grace"))
+
+    def test_subtitle_in_output(self):
+        assert "Hymn" in self.renderer.render(self._meta_song(subtitle=["Hymn"]))
+
+    def test_artist_in_output(self):
+        assert "John Newton" in self.renderer.render(self._meta_song(artist=["John Newton"]))
+
+    def test_album_in_output(self):
+        assert "Olney Hymns" in self.renderer.render(self._meta_song(album=["Olney Hymns"]))
+
+    def test_composer_in_output(self):
+        result = self.renderer.render(self._meta_song(composer=["William Walker"]))
+        assert "William Walker" in result
+
+    def test_key_in_output(self):
+        result = self.renderer.render(self._meta_song(key=["G"]))
+        assert "Key: G" in result
+
+    def test_time_in_output(self):
+        result = self.renderer.render(self._meta_song(time=["3/4"]))
+        assert "Time: 3/4" in result
+
+    def test_tempo_in_output(self):
+        result = self.renderer.render(self._meta_song(tempo=["80"]))
+        assert "Tempo: 80" in result
+
+    def test_copyright_in_footer(self):
+        result = self.renderer.render(self._meta_song(copyright=["© 1779"]))
+        assert "© 1779" in result
+
+    def test_footer_separated_from_header(self):
+        result = self.renderer.render(
+            self._meta_song(title="Title", copyright=["© 1779"])
+        )
+        # header and footer separated by double newline
+        assert "\n\n" in result
+
+    def test_empty_song_no_extra_newlines(self):
+        assert self.renderer.render(Song()) == ""
+
+
+# ---------------------------------------------------------------------------
 # QuillDeltaRenderer
 # ---------------------------------------------------------------------------
 
@@ -405,6 +536,74 @@ class TestQuillDeltaRenderer:
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         # Latin C is "Do" in solfege — whatever the conversion, chord attr must be set
         assert chord_ops
+
+
+# ---------------------------------------------------------------------------
+# QuillDeltaRenderer — header / footer metadata
+# ---------------------------------------------------------------------------
+
+
+class TestQuillDeltaRendererMetadata:
+    renderer = QuillDeltaRenderer()
+
+    def _meta_song(self, **kwargs):
+        return Song(meta=SongMeta(**kwargs))
+
+    def _inserts(self, song_obj, semi_to_name=None):
+        return [op["insert"] for op in self.renderer.render(song_obj, semi_to_name)["ops"]]
+
+    def test_title_is_bold_header(self):
+        ops = self.renderer.render(self._meta_song(title="Amazing Grace"))["ops"]
+        title_op = next(op for op in ops if op.get("insert") == "Amazing Grace")
+        assert title_op.get("attributes", {}).get("bold") is True
+        assert title_op.get("attributes", {}).get("header") == "title"
+
+    def test_subtitle_in_ops(self):
+        inserts = self._inserts(self._meta_song(subtitle=["Hymn"]))
+        assert "Hymn" in inserts
+
+    def test_subtitle_has_subtitle_header_attr(self):
+        ops = self.renderer.render(self._meta_song(subtitle=["Hymn"]))["ops"]
+        sub_op = next(op for op in ops if op.get("insert") == "Hymn")
+        assert sub_op.get("attributes", {}).get("header") == "subtitle"
+
+    def test_artist_in_ops(self):
+        inserts = self._inserts(self._meta_song(artist=["John Newton"]))
+        assert "John Newton" in inserts
+
+    def test_artist_is_italic(self):
+        ops = self.renderer.render(self._meta_song(artist=["John Newton"]))["ops"]
+        artist_op = next(op for op in ops if op.get("insert") == "John Newton")
+        assert artist_op.get("attributes", {}).get("italic") is True
+
+    def test_album_in_ops(self):
+        inserts = self._inserts(self._meta_song(album=["Olney Hymns"]))
+        assert "Olney Hymns" in inserts
+
+    def test_composer_in_ops(self):
+        inserts = self._inserts(self._meta_song(composer=["William Walker"]))
+        assert "William Walker" in inserts
+
+    def test_key_in_meta_info(self):
+        inserts = self._inserts(self._meta_song(key=["G"]))
+        assert any("Key: G" in s for s in inserts)
+
+    def test_time_in_meta_info(self):
+        inserts = self._inserts(self._meta_song(time=["3/4"]))
+        assert any("Time: 3/4" in s for s in inserts)
+
+    def test_tempo_in_meta_info(self):
+        inserts = self._inserts(self._meta_song(tempo=["80"]))
+        assert any("Tempo: 80" in s for s in inserts)
+
+    def test_copyright_in_footer(self):
+        inserts = self._inserts(self._meta_song(copyright=["© 1779"]))
+        assert "© 1779" in inserts
+
+    def test_copyright_has_footer_attr(self):
+        ops = self.renderer.render(self._meta_song(copyright=["© 1779"]))["ops"]
+        copy_op = next(op for op in ops if op.get("insert") == "© 1779")
+        assert copy_op.get("attributes", {}).get("footer") == "copyright"
 
 
 # ---------------------------------------------------------------------------
@@ -989,6 +1188,103 @@ class TestQuillDeltaRendererLineTypes:
         ops = self.renderer.render_many([song(v)])["ops"]
         texts = [op["insert"] for op in ops]
         assert "verse text" in texts
+
+
+# ---------------------------------------------------------------------------
+# TextRenderer — unknown line types
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# render(key=...) — key transposition via render() dispatch
+# ---------------------------------------------------------------------------
+
+
+def _song_in_key(key: str, *chords: str) -> Song:
+    meta = SongMeta(key=[key])
+    body = [chord_line(Segment(c, "word")) for c in chords]
+    return Song(meta=meta, body=body)
+
+
+class TestRenderKey:
+    def test_chord_transposed_c_to_g_html(self):
+        s = _song_in_key("C", "C")
+        result = render(s, format="html", key="G")
+        assert ">G<" in result
+
+    def test_chord_transposed_c_to_g_text(self):
+        s = _song_in_key("C", "C")
+        result = render(s, format="text", key="G")
+        assert "G" in result
+
+    def test_chord_transposed_c_to_g_quill(self):
+        s = _song_in_key("C", "C")
+        ops = render(s, format="quill-delta", key="G")["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        assert chord_ops[0]["insert"] == "G"
+
+    def test_header_shows_target_key(self):
+        s = _song_in_key("C", "G")
+        result = render(s, format="html", key="G")
+        assert "Key: G" in result
+
+    def test_same_key_no_chord_change(self):
+        s = _song_in_key("C", "G")
+        result = render(s, format="text", key="C")
+        assert "G" in result
+
+    def test_key_combined_with_semi_to_name(self):
+        # Transpose C→G first, then convert to Latin notation
+        s = _song_in_key("C", "C")
+        latin = build_chord_semi_to_name("latin")
+        ops = render(s, semi_to_name=latin, format="quill-delta", key="G")["ops"]
+        chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
+        # G in Latin notation = "Sol"
+        assert chord_ops[0]["insert"] == "Sol"
+
+    def test_no_key_leaves_chords_unchanged(self):
+        s = _song_in_key("C", "C")
+        result = render(s, format="text")
+        # No transposition: C stays C
+        assert "C" in result
+
+    def test_am_transposed_to_em(self):
+        s = _song_in_key("C", "Am")
+        result = render(s, format="text", key="G")
+        assert "Em" in result
+
+
+class TestRenderManyKey:
+    def test_each_song_transposed_from_its_own_key(self):
+        # Song 1 in C → G: C becomes G; Song 2 in G → G: no change
+        s1 = _song_in_key("C", "C")
+        s2 = _song_in_key("G", "D")
+        result = render_many([s1, s2], format="text", key="G")
+        # s1's C transposed to G, s2's D stays D (G→G = no shift)
+        assert "G" in result
+        assert "D" in result
+
+    def test_key_appears_in_html_headers(self):
+        s1 = _song_in_key("C", "G")
+        s2 = _song_in_key("D", "A")
+        result = render_many([s1, s2], format="html", key="G")
+        assert result.count("Key: G") == 2
+
+    def test_html_wrapper_still_applied(self):
+        songs = [_song_in_key("C", "C"), _song_in_key("C", "G")]
+        result = render_many(songs, format="html", key="G")
+        assert result.count('<div class="cp-song">') == 2
+
+    def test_text_songs_joined_by_form_feed(self):
+        songs = [_song_in_key("C", "C"), _song_in_key("D", "D")]
+        result = render_many(songs, format="text", key="G")
+        assert "\f" in result
+
+    def test_quill_delta_has_page_break_between_songs(self):
+        songs = [_song_in_key("C", "C"), _song_in_key("D", "D")]
+        ops = render_many(songs, format="quill-delta", key="G")["ops"]
+        page_breaks = [op for op in ops if op.get("attributes", {}).get("page_break")]
+        assert len(page_breaks) == 1
 
 
 # ---------------------------------------------------------------------------

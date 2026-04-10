@@ -30,15 +30,52 @@ class TextRenderer(BaseRenderer):
         super().__init__(ascii_accidentals=ascii_accidentals)
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> str:
-        parts = []
+        sections = []
+        header = self._render_header(song.meta)
+        if header:
+            sections.append(header)
+        body_parts = []
         for item in song.body:
             if hasattr(item, "lines"):
-                parts.append(self._render_section(item, semi_to_name))
+                body_parts.append(self._render_section(item, semi_to_name))
             else:
                 result = self._render_line(item, semi_to_name)
                 if result is not None:
-                    parts.append(result)
-        return "\n".join(parts)
+                    body_parts.append(result)
+        if body_parts:
+            sections.append("\n".join(body_parts))
+        footer = self._render_footer(song.meta)
+        if footer:
+            sections.append(footer)
+        return "\n\n".join(sections)
+
+    def _render_header(self, meta) -> str:
+        lines = []
+        if meta.title:
+            lines.append(meta.title)
+        for sub in meta.subtitle:
+            lines.append(sub)
+        if meta.artist:
+            lines.append(", ".join(meta.artist))
+        if meta.album:
+            lines.append("Album: " + ", ".join(meta.album))
+        if meta.composer:
+            lines.append("Composer: " + ", ".join(meta.composer))
+        info_parts = []
+        if meta.key:
+            info_parts.append("Key: " + ", ".join(meta.key))
+        if meta.time:
+            info_parts.append("Time: " + ", ".join(meta.time))
+        if meta.tempo:
+            info_parts.append("Tempo: " + ", ".join(meta.tempo))
+        if info_parts:
+            lines.append("  |  ".join(info_parts))
+        return "\n".join(lines)
+
+    def _render_footer(self, meta) -> str:
+        if not meta.copyright:
+            return ""
+        return "\n".join(meta.copyright)
 
     def render_many(self, songs: list[Song], semi_to_name: dict | None = None) -> str:
         """Render multiple *songs* separated by form-feed characters (``\\f``).

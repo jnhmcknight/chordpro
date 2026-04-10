@@ -64,7 +64,9 @@ __all__ = [
     "parse",
     "build_chord_semi_to_name",
     "build_nashville_semi_to_name",
+    "build_transposed_semi_to_name",
     "key_to_semitone",
+    "transpose_song",
 ]
 
 _SECTION_MAP = {
@@ -126,6 +128,77 @@ def key_to_semitone(key: str) -> int:
     # Strip trailing minor marker so "Am" → "A", "F#m" → "F#"
     root = key.strip().rstrip("m")
     return _STANDARD_NOTE_TO_SEMI.get(_normalize_accidental(root), 0)
+
+
+def build_transposed_semi_to_name(shift: int, notation: str = "standard") -> dict[int, str]:
+    """Return a semitone→chord-root dict that transposes by *shift* semitones.
+
+    The returned dict is suitable as the *semi_to_name* argument of any
+    renderer's ``render()`` method.  Combine with ``key_to_semitone()`` to
+    shift from a known source key to a target key::
+
+        shift = (key_to_semitone("G") - key_to_semitone("C")) % 12
+        semi_to_name = build_transposed_semi_to_name(shift)
+    """
+    base = build_chord_semi_to_name(notation)
+    return {s: base[(s + shift) % 12] for s in range(12)}
+
+
+def transpose_song(song: Song, target_key: str) -> Song:
+    """Return a new ``Song`` with all chords transposed to *target_key*.
+
+    The source key is taken from ``song.meta.key[0]``; if the song has no key
+    metadata, C major is assumed.  The returned song's ``meta.key`` is set to
+    ``[target_key]``.
+
+    Chord roots in the copy use standard chromatic note names so any renderer
+    can process them without further configuration.  Pass an additional
+    *semi_to_name* dict to the renderer if you also want notation conversion
+    (Nashville numbers, German notation, etc.) applied on top.
+    """
+    import dataclasses
+
+    source_key = song.meta.key[0] if song.meta.key else "C"
+    shift = (key_to_semitone(target_key) - key_to_semitone(source_key)) % 12
+
+    new_meta = dataclasses.replace(song.meta, key=[target_key])
+
+    if shift == 0:
+        return dataclasses.replace(song, meta=new_meta)
+
+    std_map = build_chord_semi_to_name("standard")
+
+    def _txpose_chord(chord: str) -> str:
+        m = re.match(r"^([A-G][#b♯♭]?)(.*)", chord, re.DOTALL)
+        if not m:
+            return chord
+        semi = _STANDARD_NOTE_TO_SEMI.get(_normalize_accidental(m.group(1)))
+        if semi is None:
+            return chord
+        return std_map[(semi + shift) % 12] + m.group(2)
+
+    def _txpose_line(line):
+        if isinstance(line, ChordLine):
+            return ChordLine(segments=[
+                Segment(
+                    chord=_txpose_chord(seg.chord) if seg.chord is not None else None,
+                    lyric=seg.lyric,
+                )
+                for seg in line.segments
+            ])
+        return line
+
+    new_body = []
+    for item in song.body:
+        item_lines = getattr(item, "lines", None)
+        if item_lines is not None:
+            new_body.append(
+                dataclasses.replace(item, lines=[_txpose_line(l) for l in item_lines])
+            )
+        else:
+            new_body.append(_txpose_line(item))
+
+    return dataclasses.replace(song, meta=new_meta, body=new_body)
 
 
 def build_nashville_semi_to_name(key_semitone: int) -> dict[int, str]:

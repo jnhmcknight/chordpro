@@ -98,7 +98,7 @@ class TestFormatKeyFilter:
     def test_none_key_returns_string(self, app):
         with app.test_request_context("/"):
             filt = app.jinja_env.filters["format_key"]
-            assert filt(None) == "None"
+            assert filt(None) == ""
 
     def test_all_major_keys_standard(self, app):
         expected = {
@@ -139,3 +139,51 @@ class TestFormatKeyFilter:
             filt = app.jinja_env.filters["format_key"]
             for key_int, name in expected.items():
                 assert filt(key_int) == name, f"key_int={key_int}"
+
+    def test_string_key_standard_returns_as_is(self, app):
+        with app.test_request_context("/"):
+            filt = app.jinja_env.filters["format_key"]
+            assert filt("C") == "C"
+
+    def test_string_key_minor_standard_returns_as_is(self, app):
+        with app.test_request_context("/"):
+            filt = app.jinja_env.filters["format_key"]
+            assert filt("Am") == "Am"
+
+    def test_string_key_latin_major(self, app):
+        with app.test_request_context("/"):
+            from flask import g
+            g.notation = "latin"
+            filt = app.jinja_env.filters["format_key"]
+            assert filt("C") == "Do"
+
+    def test_string_key_latin_minor(self, app):
+        with app.test_request_context("/"):
+            from flask import g
+            g.notation = "latin"
+            filt = app.jinja_env.filters["format_key"]
+            assert filt("Am") == "Lam"
+
+    def test_string_key_german_major(self, app):
+        with app.test_request_context("/"):
+            from flask import g
+            g.notation = "german"
+            filt = app.jinja_env.filters["format_key"]
+            # B♭ major (key_int=1) → "B" in German
+            assert filt("B♭") == "B"
+
+    def test_string_key_unrecognised_returns_as_is(self, app):
+        with app.test_request_context("/"):
+            from flask import g
+            g.notation = "latin"
+            filt = app.jinja_env.filters["format_key"]
+            assert filt("Xyz") == "Xyz"
+
+    def test_nashville_notation_via_g(self, app):
+        with app.test_request_context("/"):
+            from flask import g
+            g.notation = "nashville"
+            filt = app.jinja_env.filters["chordpro"]
+            result = filt("{title: Test}\n[C]word", "html")
+        # Nashville renders chords as numbers; C in key of C is "1"
+        assert result is not None

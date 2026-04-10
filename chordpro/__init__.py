@@ -108,8 +108,10 @@ from .models import (
 from .parser import (
     build_chord_semi_to_name,
     build_nashville_semi_to_name,
+    build_transposed_semi_to_name,
     key_to_semitone,
     parse,
+    transpose_song,
 )
 from .renderers import (
     BaseRenderer,
@@ -131,7 +133,9 @@ __all__ = [
     "parse",
     "build_chord_semi_to_name",
     "build_nashville_semi_to_name",
+    "build_transposed_semi_to_name",
     "key_to_semitone",
+    "transpose_song",
     # Renderer
     "BaseRenderer",
     "HtmlRenderer",

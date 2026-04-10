@@ -16,11 +16,15 @@ from chordpro.models import (
     Tab,
     Verse,
 )
+from chordpro.constants import sbp_key_int_to_str, str_key_to_sbp_int
+from chordpro.models import Segment, SongMeta
 from chordpro.parser import (
     _convert_chord_root,
     _normalize_accidental,
     build_chord_semi_to_name,
+    build_transposed_semi_to_name,
     parse,
+    transpose_song,
 )
 
 # ---------------------------------------------------------------------------
@@ -376,3 +380,257 @@ class TestDirectiveEdgeCases:
         # {frobnicate: value} is not a known directive — body should be empty.
         song = parse("{frobnicate: some value}")
         assert song.body == []
+
+
+# ---------------------------------------------------------------------------
+# sbp_key_int_to_str
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# build_transposed_semi_to_name
+# ---------------------------------------------------------------------------
+
+
+class TestBuildTransposedSemiToName:
+    def test_returns_12_entries(self):
+        assert len(build_transposed_semi_to_name(0)) == 12
+
+    def test_zero_shift_is_identity(self):
+        assert build_transposed_semi_to_name(0) == build_chord_semi_to_name("standard")
+
+    def test_full_octave_shift_is_identity(self):
+        assert build_transposed_semi_to_name(12) == build_chord_semi_to_name("standard")
+
+    def test_c_shifts_to_g_with_shift_7(self):
+        # C is semitone 0; up 7 semitones → G (semitone 7)
+        result = build_transposed_semi_to_name(7)
+        assert result[0] == "G"
+
+    def test_g_shifts_to_d_with_shift_7(self):
+        # G is semitone 7; up 7 → D (semitone 2)
+        result = build_transposed_semi_to_name(7)
+        assert result[7] == "D"
+
+    def test_latin_notation_respected(self):
+        result = build_transposed_semi_to_name(0, notation="latin")
+        assert result[0] == "Do"
+
+    def test_german_notation_respected(self):
+        result = build_transposed_semi_to_name(0, notation="german")
+        assert result[0] == "C"
+
+
+# ---------------------------------------------------------------------------
+# transpose_song
+# ---------------------------------------------------------------------------
+
+
+def _song_in_key(key: str, *chord_strings: str) -> Song:
+    """Helper: build a Song in *key* with one ChordLine per chord string."""
+    from chordpro.models import ChordLine, Segment, SongMeta
+
+    body = [
+        ChordLine(segments=[Segment(chord=c, lyric="word")]) for c in chord_strings
+    ]
+    return Song(meta=SongMeta(key=[key]), body=body)
+
+
+class TestTransposeSong:
+    def test_meta_key_updated_to_target(self):
+        song = _song_in_key("C", "C")
+        result = transpose_song(song, "G")
+        assert result.meta.key == ["G"]
+
+    def test_same_key_returns_updated_meta_key_only(self):
+        song = _song_in_key("C", "G")
+        result = transpose_song(song, "C")
+        assert result.meta.key == ["C"]
+        chord = result.body[0].segments[0].chord
+        assert chord == "G"  # unchanged
+
+    def test_c_to_g_shifts_c_chord(self):
+        # C → G (up 7 semitones): C becomes G
+        song = _song_in_key("C", "C")
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "G"
+
+    def test_c_to_g_shifts_am_chord(self):
+        # Am → Em (up 7 semitones)
+        song = _song_in_key("C", "Am")
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "Em"
+
+    def test_chord_suffix_preserved(self):
+        song = _song_in_key("C", "Cmaj7")
+        result = transpose_song(song, "G")
+        chord = result.body[0].segments[0].chord
+        assert chord == "Gmaj7"
+
+    def test_ascii_sharp_input_transposed(self):
+        # F# (=F♯, semitone 6) + 7 = C♯ (semitone 1)
+        song = _song_in_key("C", "F#")
+        result = transpose_song(song, "G")
+        chord = result.body[0].segments[0].chord
+        assert chord == "C♯"
+
+    def test_ascii_flat_input_transposed(self):
+        # Bb (=B♭, semitone 10) + 7 = F (semitone 5)
+        song = _song_in_key("C", "Bb")
+        result = transpose_song(song, "G")
+        chord = result.body[0].segments[0].chord
+        assert chord == "F"
+
+    def test_unicode_sharp_input_transposed(self):
+        song = _song_in_key("C", "F♯")
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "C♯"
+
+    def test_unicode_flat_input_transposed(self):
+        song = _song_in_key("C", "B♭")
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "F"
+
+    def test_non_chord_segment_none_preserved(self):
+        from chordpro.models import ChordLine, SongMeta
+
+        song = Song(
+            meta=SongMeta(key=["C"]),
+            body=[ChordLine(segments=[Segment(chord=None, lyric="lyrics only")])],
+        )
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord is None
+        assert result.body[0].segments[0].lyric == "lyrics only"
+
+    def test_lyric_line_preserved_unchanged(self):
+        from chordpro.models import LyricLine, SongMeta
+
+        song = Song(
+            meta=SongMeta(key=["C"]),
+            body=[LyricLine("Amazing grace")],
+        )
+        result = transpose_song(song, "G")
+        assert isinstance(result.body[0], LyricLine)
+        assert result.body[0].text == "Amazing grace"
+
+    def test_chords_inside_section_transposed(self):
+        song = parse("{key: C}\n{start_of_verse}\n[C]Amazing [G]grace\n{end_of_verse}")
+        result = transpose_song(song, "G")
+        verse = result.body[0]
+        segs = verse.lines[0].segments
+        chords = [s.chord for s in segs if s.chord is not None]
+        assert chords == ["G", "D"]
+
+    def test_song_without_key_meta_defaults_to_c(self):
+        from chordpro.models import ChordLine, SongMeta
+
+        song = Song(
+            meta=SongMeta(),  # no key set
+            body=[ChordLine(segments=[Segment(chord="C", lyric="word")])],
+        )
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "G"
+
+    def test_original_song_not_mutated(self):
+        song = _song_in_key("C", "C")
+        _ = transpose_song(song, "G")
+        assert song.body[0].segments[0].chord == "C"
+        assert song.meta.key == ["C"]
+
+    def test_unrecognised_chord_root_passed_through(self):
+        from chordpro.models import ChordLine, SongMeta
+
+        song = Song(
+            meta=SongMeta(key=["C"]),
+            body=[ChordLine(segments=[Segment(chord="N.C.", lyric="")])],
+        )
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "N.C."
+
+    def test_unknown_accidental_combo_passed_through(self):
+        # "Cb" normalises to "C♭" which is not in _STANDARD_NOTE_TO_SEMI;
+        # the chord should be returned unchanged.
+        from chordpro.models import ChordLine, SongMeta
+
+        song = Song(
+            meta=SongMeta(key=["C"]),
+            body=[ChordLine(segments=[Segment(chord="Cb", lyric="")])],
+        )
+        result = transpose_song(song, "G")
+        assert result.body[0].segments[0].chord == "Cb"
+
+
+# ---------------------------------------------------------------------------
+# sbp_key_int_to_str
+# ---------------------------------------------------------------------------
+
+
+class TestSbpKeyIntToStr:
+    def test_none_returns_none(self):
+        assert sbp_key_int_to_str(None) is None
+
+    def test_major_key_zero(self):
+        assert sbp_key_int_to_str(0) == "A"
+
+    def test_major_key_three(self):
+        assert sbp_key_int_to_str(3) == "C"
+
+    def test_major_key_eleven(self):
+        assert sbp_key_int_to_str(11) == "A♭"
+
+    def test_minor_key_twelve(self):
+        # 12 → minor[0] → "F♯m"
+        assert sbp_key_int_to_str(12) == "F♯m"
+
+    def test_minor_key_fifteen(self):
+        # 15 → minor[3] → "Am"
+        assert sbp_key_int_to_str(15) == "Am"
+
+    def test_minor_key_twenty_three(self):
+        # 23 → minor[11] → "Fm"
+        assert sbp_key_int_to_str(23) == "Fm"
+
+    def test_out_of_range_returns_none(self):
+        assert sbp_key_int_to_str(24) is None
+
+
+# ---------------------------------------------------------------------------
+# str_key_to_sbp_int
+# ---------------------------------------------------------------------------
+
+
+class TestStrKeyToSbpInt:
+    def test_none_returns_none(self):
+        assert str_key_to_sbp_int(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert str_key_to_sbp_int("") is None
+
+    def test_major_key_a(self):
+        assert str_key_to_sbp_int("A") == 0
+
+    def test_major_key_c(self):
+        assert str_key_to_sbp_int("C") == 3
+
+    def test_major_key_ab(self):
+        assert str_key_to_sbp_int("A♭") == 11
+
+    def test_minor_key_fsharpm(self):
+        # "F♯m" → minor[0] → 0 + 12 = 12
+        assert str_key_to_sbp_int("F♯m") == 12
+
+    def test_minor_key_am(self):
+        # "Am" → minor[3] → 3 + 12 = 15
+        assert str_key_to_sbp_int("Am") == 15
+
+    def test_minor_key_fm(self):
+        # "Fm" → minor[11] → 11 + 12 = 23
+        assert str_key_to_sbp_int("Fm") == 23
+
+    def test_unrecognised_returns_none(self):
+        assert str_key_to_sbp_int("X") is None
+
+    def test_roundtrip(self):
+        for i in range(24):
+            key_str = sbp_key_int_to_str(i)
+            assert str_key_to_sbp_int(key_str) == i

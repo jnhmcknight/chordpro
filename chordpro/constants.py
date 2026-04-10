@@ -209,3 +209,37 @@ KEY_NAMES = {
         },
     },
 }
+
+
+def sbp_key_int_to_str(key_int: int | None) -> str | None:
+    """Convert a SongbookPro integer key (0-23) to a standard key name string.
+
+    SBP major key ordering: A=0, B♭=1, B=2, C=3, …, G=10, A♭=11
+    SBP minor key ordering: F♯m=12, Gm=13, G♯m=14, Am=15, …, Fm=23
+    """
+    if key_int is None:
+        return None
+    table = KEY_NAMES["standard"]
+    try:
+        if key_int >= 12:
+            return table["minor"][key_int - 12]
+        return table["major"][key_int]
+    except (KeyError, TypeError):
+        return None
+
+
+def str_key_to_sbp_int(key_str: str | None) -> int | None:
+    """Convert a standard key name string to a SongbookPro integer key (0-23).
+
+    Returns None if the key string is not recognised.
+    """
+    if not key_str:
+        return None
+    table = KEY_NAMES["standard"]
+    for idx, name in table["major"].items():
+        if name == key_str:
+            return idx
+    for idx, name in table["minor"].items():
+        if name == key_str:
+            return idx + 12
+    return None

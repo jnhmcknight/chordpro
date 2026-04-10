@@ -152,7 +152,7 @@ class PdfRenderer(BaseRenderer):
 
     # --- Tuneable defaults -------------------------------------------------
     PAGE_SIZE = None  # set to e.g. A4 to override; None → letter
-    MARGIN = None  # inches; None → 1 inch
+    MARGIN = None  # inches; None → 0.5 inch
     COMPRESS = True  # set False to disable PDF stream compression (useful in tests)
 
     TITLE_FONT = "Helvetica-Bold"
@@ -219,12 +219,26 @@ class PdfRenderer(BaseRenderer):
         buf, doc = self._make_doc()
         styles, chord_color = self._make_styles()
         story = self._build_song_story(song, semi_to_name, styles, chord_color)
-        doc.build(story)
+        story = self._maybe_two_column(story, doc)
+        footer_cb = self._make_footer_cb(song.meta.copyright)
+        doc.build(story, onFirstPage=footer_cb, onLaterPages=footer_cb)
         return buf.getvalue()
 
     def render_many(self, songs: list[Song], semi_to_name: dict | None = None) -> bytes:
         """Render multiple *songs* into a single PDF.  Each song starts on a new page."""
-        from reportlab.platypus import PageBreak
+        from reportlab.platypus import PageBreak, Flowable
+
+        class _SetCopyright(Flowable):
+            """Zero-size flowable that records the current song's copyright on the canvas."""
+
+            def __init__(self, copyright_texts):
+                super().__init__()
+                self.copyright_texts = copyright_texts
+                self.width = 0
+                self.height = 0
+
+            def draw(self):
+                self.canv._sbp_current_copyright = self.copyright_texts
 
         self._setup_unicode_font()
         buf, doc = self._make_doc()
@@ -233,11 +247,61 @@ class PdfRenderer(BaseRenderer):
         for i, song in enumerate(songs):
             if i > 0:
                 story.append(PageBreak())
+            story.append(_SetCopyright(song.meta.copyright))
             story.extend(
                 self._build_song_story(song, semi_to_name, styles, chord_color)
             )
-        doc.build(story)
+        footer_cb = self._make_footer_cb_dynamic()
+        doc.build(story, onFirstPage=footer_cb, onLaterPages=footer_cb)
         return buf.getvalue()
+
+    def _make_footer_cb(self, copyright_texts: list[str]):
+        """Return a reportlab page callback that draws copyright text at the page bottom."""
+        font = self.META_FONT
+        size = max(self.META_SIZE - 2, 6)
+        margin_in = self.MARGIN or 0.5
+
+        def draw_footer(canvas, doc):
+            if not copyright_texts:
+                return
+            from reportlab.lib import colors
+            from reportlab.lib.units import inch
+
+            canvas.saveState()
+            canvas.setFont(font, size)
+            canvas.setFillColor(colors.grey)
+            text = " | ".join(copyright_texts)
+            canvas.drawString(margin_in * inch, margin_in * 0.35 * inch, text)
+            canvas.restoreState()
+
+        return draw_footer
+
+    def _make_footer_cb_dynamic(self):
+        """Return a page callback that draws only the current song's copyright per page.
+
+        Reads the copyright set by the ``_SetCopyright`` flowable rendered earlier on
+        the same page, so multi-song PDFs show each song's own copyright rather than
+        every song's copyright on every page.
+        """
+        font = self.META_FONT
+        size = max(self.META_SIZE - 2, 6)
+        margin_in = self.MARGIN or 0.5
+
+        def draw_footer(canvas, doc):
+            copyright_texts = getattr(canvas, "_sbp_current_copyright", [])
+            if not copyright_texts:
+                return
+            from reportlab.lib import colors
+            from reportlab.lib.units import inch
+
+            canvas.saveState()
+            canvas.setFont(font, size)
+            canvas.setFillColor(colors.grey)
+            text = " | ".join(copyright_texts)
+            canvas.drawString(margin_in * inch, margin_in * 0.35 * inch, text)
+            canvas.restoreState()
+
+        return draw_footer
 
     # -----------------------------------------------------------------------
     # Unicode font helpers
@@ -346,7 +410,7 @@ class PdfRenderer(BaseRenderer):
             ) from None
 
         page_size = self.PAGE_SIZE or letter
-        margin = (self.MARGIN or 1.0) * inch
+        margin = (self.MARGIN or 0.5) * inch
         buf = BytesIO()
         doc = SimpleDocTemplate(
             buf,
@@ -358,6 +422,74 @@ class PdfRenderer(BaseRenderer):
             compress=1 if self.COMPRESS else 0,
         )
         return buf, doc
+
+    def _measure_height(self, flowables: list, avail_w: float, avail_h: float) -> float:
+        """Estimate the total rendered height of *flowables* at *avail_w* width."""
+        total = 0.0
+        for f in flowables:
+            try:
+                _, h = f.wrap(avail_w, avail_h)
+                total += h
+                # Paragraph spaceBefore/spaceAfter live on the style object
+                style = getattr(f, "style", None)
+                if style is not None:
+                    total += getattr(style, "spaceBefore", 0)
+                    total += getattr(style, "spaceAfter", 0)
+            except Exception:
+                pass
+        return total
+
+    def _maybe_two_column(self, story: list, doc) -> list:
+        """If *story* overflows one page, attempt a 2-column layout to keep it on one page.
+
+        The header (everything up to and including the post-header Spacer) stays
+        full-width; only the body sections are flowed into two columns, left
+        column first.
+        """
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Spacer
+
+        page_w, page_h = doc.pagesize
+        avail_w = page_w - doc.leftMargin - doc.rightMargin
+        avail_h = page_h - doc.topMargin - doc.bottomMargin
+
+        if self._measure_height(story, avail_w, avail_h) <= avail_h:
+            return story  # already fits on one page
+
+        # Split at the first Spacer (the one appended after the metadata header)
+        split_idx = 0
+        for i, f in enumerate(story):
+            if isinstance(f, Spacer):
+                split_idx = i + 1
+                break
+
+        header_items = story[:split_idx]
+        body_items = story[split_idx:]
+
+        if not body_items:
+            return story
+
+        header_h = self._measure_height(header_items, avail_w, avail_h)
+        remaining_h = avail_h - header_h
+
+        col_gap = 0.2 * inch
+        col_w = (avail_w - col_gap) / 2
+
+        if self._measure_height(body_items, col_w, remaining_h) <= remaining_h:
+            try:
+                from reportlab.platypus.flowables import BalancedColumns
+
+                bc = BalancedColumns(
+                    body_items,
+                    nCols=2,
+                    needed=0,
+                    innerPadding=col_gap / 2,
+                )
+                return header_items + [bc]
+            except Exception:
+                pass  # reportlab version doesn't support BalancedColumns
+
+        return story  # can't fit in 2 columns either — let it flow normally
 
     def _make_styles(self):
         """Create and return (styles_dict, chord_color) for this renderer's settings."""
@@ -417,13 +549,21 @@ class PdfRenderer(BaseRenderer):
             header.append(
                 Paragraph(self._esc(", ".join(song.meta.artist)), styles["artist"])
             )
+        if song.meta.album:
+            header.append(
+                Paragraph(self._esc(", ".join(song.meta.album)), styles["meta"])
+            )
+        if song.meta.composer:
+            header.append(
+                Paragraph(self._esc(", ".join(song.meta.composer)), styles["meta"])
+            )
         meta_parts = []
         if song.meta.key:
             meta_parts.append("Key: " + ", ".join(song.meta.key))
-        if song.meta.tempo:
-            meta_parts.append("Tempo: " + ", ".join(song.meta.tempo))
         if song.meta.time:
             meta_parts.append("Time: " + ", ".join(song.meta.time))
+        if song.meta.tempo:
+            meta_parts.append("Tempo: " + ", ".join(song.meta.tempo))
         if song.meta.capo:
             meta_parts.append("Capo: " + song.meta.capo)
         if meta_parts:
@@ -527,10 +667,13 @@ class PdfRenderer(BaseRenderer):
         chorus_ref_style,
         chord_color,
     ):
-        from reportlab.platypus import Paragraph
+        from reportlab.platypus import KeepTogether, Paragraph
 
+        section_flowables = []
         if section.label:
-            story.append(Paragraph(self._esc(section.label), section_label_style))
+            section_flowables.append(
+                Paragraph(self._esc(section.label), section_label_style)
+            )
         for line in section.lines:
             flowable = self._line_to_flowable(
                 line,
@@ -541,4 +684,6 @@ class PdfRenderer(BaseRenderer):
                 chord_color,
             )
             if flowable is not None:
-                story.append(flowable)
+                section_flowables.append(flowable)
+        if section_flowables:
+            story.append(KeepTogether(section_flowables))

@@ -26,11 +26,13 @@ class QuillDeltaRenderer(BaseRenderer):
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> dict:
         ops: list[dict] = []
+        self._render_header(ops, song.meta)
         for item in song.body:
             if hasattr(item, "lines"):
                 self._render_section(ops, item, semi_to_name)
             else:
                 self._render_line(ops, item, semi_to_name)
+        self._render_footer(ops, song.meta)
         return {"ops": ops}
 
     def render_many(self, songs: list[Song], semi_to_name: dict | None = None) -> dict:
@@ -43,12 +45,46 @@ class QuillDeltaRenderer(BaseRenderer):
         for i, song in enumerate(songs):
             if i > 0:
                 self._insert(ops, "\n", page_break=True)
+            self._render_header(ops, song.meta)
             for item in song.body:
                 if hasattr(item, "lines"):
                     self._render_section(ops, item, semi_to_name)
                 else:
                     self._render_line(ops, item, semi_to_name)
+            self._render_footer(ops, song.meta)
         return {"ops": ops}
+
+    def _render_header(self, ops: list, meta) -> None:
+        if meta.title:
+            self._insert(ops, meta.title, bold=True, header="title")
+            self._insert(ops, "\n")
+        for sub in meta.subtitle:
+            self._insert(ops, sub, header="subtitle")
+            self._insert(ops, "\n")
+        if meta.artist:
+            self._insert(ops, ", ".join(meta.artist), italic=True, header="artist")
+            self._insert(ops, "\n")
+        if meta.album:
+            self._insert(ops, ", ".join(meta.album), header="album")
+            self._insert(ops, "\n")
+        if meta.composer:
+            self._insert(ops, ", ".join(meta.composer), header="composer")
+            self._insert(ops, "\n")
+        info_parts = []
+        if meta.key:
+            info_parts.append("Key: " + ", ".join(meta.key))
+        if meta.time:
+            info_parts.append("Time: " + ", ".join(meta.time))
+        if meta.tempo:
+            info_parts.append("Tempo: " + ", ".join(meta.tempo))
+        if info_parts:
+            self._insert(ops, "  |  ".join(info_parts), header="meta")
+            self._insert(ops, "\n")
+
+    def _render_footer(self, ops: list, meta) -> None:
+        for c in meta.copyright:
+            self._insert(ops, c, footer="copyright")
+            self._insert(ops, "\n")
 
     def _insert(self, ops: list, text: str, **attrs) -> None:
         op: dict = {"insert": text}

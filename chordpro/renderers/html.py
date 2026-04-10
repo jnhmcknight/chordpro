@@ -36,7 +36,13 @@ class HtmlRenderer(BaseRenderer):
     """Renders a ``Song`` to ``markupsafe.Markup`` HTML."""
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> Markup:
+        return Markup("\n".join(self._render_song(song, semi_to_name)))
+
+    def _render_song(self, song: Song, semi_to_name: dict | None = None) -> list[str]:
         parts = []
+        header = self._render_header(song.meta)
+        if header:
+            parts.append(header)
         for item in song.body:
             if hasattr(item, "lines"):
                 parts.append(self._render_section(item, semi_to_name))
@@ -44,7 +50,10 @@ class HtmlRenderer(BaseRenderer):
                 rendered = self._render_line(item, semi_to_name)
                 if rendered:
                     parts.append(rendered)
-        return Markup("\n".join(parts))
+        footer = self._render_footer(song.meta)
+        if footer:
+            parts.append(footer)
+        return parts
 
     def render_many(
         self, songs: list[Song], semi_to_name: dict | None = None
@@ -56,16 +65,53 @@ class HtmlRenderer(BaseRenderer):
         """
         song_parts = []
         for song in songs:
-            inner = []
-            for item in song.body:
-                if hasattr(item, "lines"):
-                    inner.append(self._render_section(item, semi_to_name))
-                else:
-                    rendered = self._render_line(item, semi_to_name)
-                    if rendered:
-                        inner.append(rendered)
-            song_parts.append('<div class="cp-song">\n' + "\n".join(inner) + "\n</div>")
+            song_parts.append(
+                '<div class="cp-song">\n'
+                + "\n".join(self._render_song(song, semi_to_name))
+                + "\n</div>"
+            )
         return Markup("\n".join(song_parts))
+
+    def _render_header(self, meta) -> str:
+        inner = []
+        if meta.title:
+            inner.append(f'<div class="cp-title">{_html.escape(meta.title)}</div>')
+        for sub in meta.subtitle:
+            inner.append(f'<div class="cp-subtitle">{_html.escape(sub)}</div>')
+        if meta.artist:
+            inner.append(
+                f'<div class="cp-artist">{_html.escape(", ".join(meta.artist))}</div>'
+            )
+        if meta.album:
+            inner.append(
+                f'<div class="cp-album">{_html.escape(", ".join(meta.album))}</div>'
+            )
+        if meta.composer:
+            inner.append(
+                f'<div class="cp-composer">{_html.escape(", ".join(meta.composer))}</div>'
+            )
+        info_parts = []
+        if meta.key:
+            info_parts.append("Key: " + ", ".join(meta.key))
+        if meta.time:
+            info_parts.append("Time: " + ", ".join(meta.time))
+        if meta.tempo:
+            info_parts.append("Tempo: " + ", ".join(meta.tempo))
+        if info_parts:
+            inner.append(
+                f'<div class="cp-meta">{_html.escape("  |  ".join(info_parts))}</div>'
+            )
+        if not inner:
+            return ""
+        return '<div class="cp-header">\n' + "\n".join(inner) + "\n</div>"
+
+    def _render_footer(self, meta) -> str:
+        if not meta.copyright:
+            return ""
+        inner = [
+            f'<div class="cp-copyright">{_html.escape(c)}</div>' for c in meta.copyright
+        ]
+        return '<div class="cp-footer">\n' + "\n".join(inner) + "\n</div>"
 
     def _chord_display(self, chord: str, semi_to_name: dict | None) -> tuple[str, str]:
         display = self._finalize_chord(

@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover
     Markup = str  # type: ignore[misc,assignment]
 
 from ..models import Song
-from ..parser import parse
+from ..parser import parse, transpose_song
 from .base import BaseRenderer
 from .html import HtmlRenderer
 from .pdf import PdfRenderer
@@ -90,6 +90,7 @@ def render(
     semi_to_name: dict | None = None,
     format: str = "html",
     ascii_accidentals: bool | None = None,
+    key: str | None = None,
 ) -> Any:
     """Render *song* using the named *format*.
 
@@ -103,6 +104,8 @@ def render(
 
     Raises ``ValueError`` for unknown format names.
     """
+    if key is not None:
+        song = transpose_song(song, key)
     try:
         renderer_cls = _REGISTRY[format]
     except KeyError:
@@ -118,6 +121,7 @@ def render_many(
     semi_to_name: dict | None = None,
     format: str = "html",
     ascii_accidentals: bool | None = None,
+    key: str | None = None,
 ) -> Any:
     """Render multiple *songs* as a single combined output using *format*.
 
@@ -136,6 +140,8 @@ def render_many(
 
     Raises ``ValueError`` for unknown format names.
     """
+    if key is not None:
+        songs = [transpose_song(s, key) for s in songs]
     try:
         renderer_cls = _REGISTRY[format]
     except KeyError:
