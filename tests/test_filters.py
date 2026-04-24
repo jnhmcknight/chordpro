@@ -27,11 +27,17 @@ class TestChordproFilter:
             filt = app.jinja_env.filters["chordpro"]
             assert filt("") == Markup("")
 
-    def test_standard_notation_default(self, app):
+    def test_standard_notation_flat_key(self, app):
         with app.test_request_context("/"):
             filt = app.jinja_env.filters["chordpro"]
-            result = filt("[Bb]word")
+            result = filt("{key: Bb}\n[Bb]word")
         assert ">B♭<" in result
+
+    def test_standard_notation_sharp_key(self, app):
+        with app.test_request_context("/"):
+            filt = app.jinja_env.filters["chordpro"]
+            result = filt("{key: G}\n[F#]word")
+        assert ">F♯<" in result
 
     def test_latin_notation_via_g(self, app):
         with app.test_request_context("/"):

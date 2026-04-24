@@ -14,7 +14,10 @@ from .constants import (
     KEY_NAMES,
     SHARP,
     _CP_SECTION_LABELS,
+    _FLAT_PREFERENCE_KEYS,
+    _FLAT_SEMI_TO_NAME,
     _NASHVILLE_CHROMATIC,
+    _SHARP_SEMI_TO_NAME,
     _SHORT_FORM_DIRECTIVES,
     _STANDARD_NOTE_TO_SEMI,
 )
@@ -110,13 +113,25 @@ _META_LIST: frozenset[str] = frozenset(
 )
 
 
-def build_chord_semi_to_name(notation: str) -> dict[int, str]:
+def build_chord_semi_to_name(notation: str, prefer_flats: bool = False) -> dict[int, str]:
     """Return a dict mapping chromatic semitone → chord root name.
 
     Falls back to ``"standard"`` for unknown notations.
+
+    For ``"standard"`` notation, *prefer_flats* selects flat accidentals
+    (D♭, E♭, G♭, A♭, B♭) over sharp ones (C♯, D♯, F♯, G♯, A♯) for
+    chromatic (non-diatonic) semitones.  Use ``_key_prefers_flats()`` to
+    derive the right value from a key string.
     """
-    table = KEY_NAMES.get(notation, KEY_NAMES["standard"])["major"]
+    if notation == "standard" or notation not in KEY_NAMES:
+        return dict(_FLAT_SEMI_TO_NAME if prefer_flats else _SHARP_SEMI_TO_NAME)
+    table = KEY_NAMES[notation]["major"]
     return {(key_int + 9) % 12: name for key_int, name in table.items()}
+
+
+def _key_prefers_flats(key: str) -> bool:
+    """Return ``True`` when *key* conventionally uses flat accidentals."""
+    return _normalize_accidental(key.strip()) in _FLAT_PREFERENCE_KEYS
 
 
 def key_to_semitone(key: str) -> int:
@@ -166,7 +181,7 @@ def transpose_song(song: Song, target_key: str) -> Song:
     if shift == 0:
         return dataclasses.replace(song, meta=new_meta)
 
-    std_map = build_chord_semi_to_name("standard")
+    std_map = build_chord_semi_to_name("standard", prefer_flats=_key_prefers_flats(target_key))
 
     def _txpose_chord(chord: str) -> str:
         m = re.match(r"^([A-G][#b♯♭]?)(.*)", chord, re.DOTALL)

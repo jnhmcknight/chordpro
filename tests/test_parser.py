@@ -75,8 +75,14 @@ class TestConvertChordRoot:
         s = build_chord_semi_to_name("latin")
         assert _convert_chord_root("F#", s) == "Fa♯"
 
-    def test_flat_root(self):
+    def test_flat_root_sharp_map(self):
+        # Default (prefer_flats=False): Bb → semitone 10 → A♯
         s = build_chord_semi_to_name("standard")
+        assert _convert_chord_root("Bb", s) == "A♯"
+
+    def test_flat_root_flat_map(self):
+        # prefer_flats=True: Bb → semitone 10 → B♭
+        s = build_chord_semi_to_name("standard", prefer_flats=True)
         assert _convert_chord_root("Bb", s) == "B♭"
 
     def test_passthrough_if_not_a_note(self):
@@ -89,7 +95,8 @@ class TestConvertChordRoot:
         assert _convert_chord_root("F♯", s) == "F♯"
 
     def test_already_unicode_flat_accepted(self):
-        s = build_chord_semi_to_name("standard")
+        # prefer_flats=True so B♭ stays B♭
+        s = build_chord_semi_to_name("standard", prefer_flats=True)
         assert _convert_chord_root("B♭", s) == "B♭"
 
     def test_unrecognised_accidental_passthrough(self):
@@ -490,6 +497,24 @@ class TestTransposeSong:
         song = _song_in_key("C", "B♭")
         result = transpose_song(song, "G")
         assert result.body[0].segments[0].chord == "F"
+
+    def test_chromatic_chord_uses_sharps_in_sharp_key(self):
+        # D major is a sharp key; C♯ (semitone 1) + 2 = semitone 3 → D♯, not E♭
+        song = _song_in_key("C", "C♯")  # semitone 1
+        result = transpose_song(song, "D")
+        assert result.body[0].segments[0].chord == "D♯"
+
+    def test_chromatic_chord_uses_flats_in_flat_key(self):
+        # B♭ major is a flat key; F (semitone 5) + 10 = semitone 3 → E♭, not D♯
+        song = _song_in_key("C", "F")  # semitone 5; shift C→B♭ = 10; (5+10)%12=3
+        result = transpose_song(song, "B♭")
+        assert result.body[0].segments[0].chord == "E♭"
+
+    def test_chromatic_chord_uses_flats_in_f_key(self):
+        # F major is a flat key; C♯ (semitone 1) + 5 semitones = semitone 6 → G♭, not F♯
+        song = _song_in_key("C", "C♯")  # semitone 1
+        result = transpose_song(song, "F")
+        assert result.body[0].segments[0].chord == "G♭"
 
     def test_non_chord_segment_none_preserved(self):
         from chordpro.models import ChordLine, SongMeta

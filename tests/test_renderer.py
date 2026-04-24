@@ -997,8 +997,9 @@ class TestMakeClassmethod:
 # ascii_accidentals — renderer defaults
 # ---------------------------------------------------------------------------
 
-# A standard-notation semi_to_name so B♭ and F♯ appear in output.
+# Standard-notation semi_to_name maps: sharp-preferring (default) and flat-preferring.
 _STD = build_chord_semi_to_name("standard")
+_STD_FLAT = build_chord_semi_to_name("standard", prefer_flats=True)
 
 
 class TestTextRendererAsciiDefaults:
@@ -1009,7 +1010,7 @@ class TestTextRendererAsciiDefaults:
 
     def test_flat_chord_output_ascii_by_default(self):
         cl = chord_line(Segment("Bb", "word"))
-        result = TextRenderer().render(song(cl), _STD)
+        result = TextRenderer().render(song(cl), _STD_FLAT)
         assert "Bb" in result
         assert "♭" not in result
 
@@ -1021,7 +1022,7 @@ class TestTextRendererAsciiDefaults:
 
     def test_unicode_override_outputs_flat_symbol(self):
         cl = chord_line(Segment("Bb", "word"))
-        result = TextRenderer(ascii_accidentals=False).render(song(cl), _STD)
+        result = TextRenderer(ascii_accidentals=False).render(song(cl), _STD_FLAT)
         assert "B♭" in result
         assert "Bb" not in result
 
@@ -1040,7 +1041,7 @@ class TestHtmlRendererAsciiDefaults:
 
     def test_flat_chord_output_unicode_by_default(self):
         cl = chord_line(Segment("Bb", "word"))
-        result = HtmlRenderer().render(song(cl), _STD)
+        result = HtmlRenderer().render(song(cl), _STD_FLAT)
         assert ">B♭<" in result
 
     def test_sharp_chord_output_unicode_by_default(self):
@@ -1050,7 +1051,7 @@ class TestHtmlRendererAsciiDefaults:
 
     def test_ascii_override_flat(self):
         cl = chord_line(Segment("Bb", "word"))
-        result = HtmlRenderer(ascii_accidentals=True).render(song(cl), _STD)
+        result = HtmlRenderer(ascii_accidentals=True).render(song(cl), _STD_FLAT)
         assert ">Bb<" in result
         assert "♭" not in result
 
@@ -1069,7 +1070,7 @@ class TestQuillDeltaRendererAsciiDefaults:
 
     def test_flat_chord_unicode_by_default(self):
         cl = chord_line(Segment("Bb", "word"))
-        ops = QuillDeltaRenderer().render(song(cl), _STD)["ops"]
+        ops = QuillDeltaRenderer().render(song(cl), _STD_FLAT)["ops"]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "B♭"
 
@@ -1081,7 +1082,7 @@ class TestQuillDeltaRendererAsciiDefaults:
 
     def test_ascii_override_flat(self):
         cl = chord_line(Segment("Bb", "word"))
-        ops = QuillDeltaRenderer(ascii_accidentals=True).render(song(cl), _STD)["ops"]
+        ops = QuillDeltaRenderer(ascii_accidentals=True).render(song(cl), _STD_FLAT)["ops"]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "Bb"
 
@@ -1101,30 +1102,30 @@ class TestRenderDispatchAsciiAccidentals:
     _cl = chord_line(Segment("Bb", "word"))
 
     def test_text_none_uses_ascii_default(self):
-        result = render(song(self._cl), _STD, format="text", ascii_accidentals=None)
+        result = render(song(self._cl), _STD_FLAT, format="text", ascii_accidentals=None)
         assert "Bb" in result
         assert "♭" not in result
 
     def test_text_explicit_false_uses_unicode(self):
-        result = render(song(self._cl), _STD, format="text", ascii_accidentals=False)
+        result = render(song(self._cl), _STD_FLAT, format="text", ascii_accidentals=False)
         assert "B♭" in result
 
     def test_html_none_uses_unicode_default(self):
-        result = render(song(self._cl), _STD, format="html", ascii_accidentals=None)
+        result = render(song(self._cl), _STD_FLAT, format="html", ascii_accidentals=None)
         assert ">B♭<" in result
 
     def test_html_explicit_true_uses_ascii(self):
-        result = render(song(self._cl), _STD, format="html", ascii_accidentals=True)
+        result = render(song(self._cl), _STD_FLAT, format="html", ascii_accidentals=True)
         assert ">Bb<" in result
         assert "♭" not in result
 
     def test_quill_delta_none_uses_unicode_default(self):
-        ops = render(song(self._cl), _STD, format="quill-delta", ascii_accidentals=None)["ops"]
+        ops = render(song(self._cl), _STD_FLAT, format="quill-delta", ascii_accidentals=None)["ops"]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "B♭"
 
     def test_quill_delta_explicit_true_uses_ascii(self):
-        ops = render(song(self._cl), _STD, format="quill-delta", ascii_accidentals=True)["ops"]
+        ops = render(song(self._cl), _STD_FLAT, format="quill-delta", ascii_accidentals=True)["ops"]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "Bb"
 

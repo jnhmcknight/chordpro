@@ -8,6 +8,7 @@ from ..cli import convert
 from ..constants import KEY_NAMES
 from ..models import SongMeta
 from ..parser import (
+    _key_prefers_flats,
     build_chord_semi_to_name,
     build_nashville_semi_to_name,
     key_to_semitone,
@@ -64,7 +65,11 @@ class ChordPro:
                 )
                 semi_to_name = build_nashville_semi_to_name(key_to_semitone(key_str))
             else:
-                semi_to_name = build_chord_semi_to_name(notation)
+                key_str = getattr(g, "key", None) or (
+                    song.meta.key[0] if song.meta.key else None
+                )
+                prefer_flats = _key_prefers_flats(key_str) if key_str else False
+                semi_to_name = build_chord_semi_to_name(notation, prefer_flats=prefer_flats)
             if isinstance(format, BaseRenderer):
                 return format.render(song, semi_to_name)
             return render(song, semi_to_name, format=format)
