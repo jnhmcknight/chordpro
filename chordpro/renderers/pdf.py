@@ -218,7 +218,7 @@ class PdfRenderer(BaseRenderer):
         self._setup_unicode_font()
         buf, doc = self._make_doc()
         styles, chord_color = self._make_styles()
-        story = self._build_song_story(song, semi_to_name, styles, chord_color)
+        story = self._build_song_story(song, semi_to_name, styles, chord_color, doc)
         story = self._maybe_two_column(story, doc)
         footer_cb = self._make_footer_cb(song.meta.copyright)
         doc.build(story, onFirstPage=footer_cb, onLaterPages=footer_cb)
@@ -249,7 +249,7 @@ class PdfRenderer(BaseRenderer):
                 story.append(PageBreak())
             story.append(_SetCopyright(song.meta.copyright))
             story.extend(
-                self._build_song_story(song, semi_to_name, styles, chord_color)
+                self._build_song_story(song, semi_to_name, styles, chord_color, doc)
             )
         footer_cb = self._make_footer_cb_dynamic()
         doc.build(story, onFirstPage=footer_cb, onLaterPages=footer_cb)
@@ -531,7 +531,7 @@ class PdfRenderer(BaseRenderer):
         return styles, chord_color
 
     def _build_song_story(
-        self, song: Song, semi_to_name, styles: dict, chord_color
+        self, song: Song, semi_to_name, styles: dict, chord_color, doc
     ) -> list:
         """Build and return the list of reportlab flowables for a single song."""
         from reportlab.lib.units import inch
@@ -540,39 +540,110 @@ class PdfRenderer(BaseRenderer):
         story = []
 
         # --- Metadata header ---
-        header = []
+        # Left column: title, subtitle, artist, album, composer
+        # Right column: key, time, tempo, capo — stacked and right-aligned
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib import colors as _colors
+
+        key_label_style = ParagraphStyle(
+            "CPKeyLabel",
+            fontName=self.META_FONT,
+            fontSize=self.META_SIZE - 1,
+            textColor=_colors.HexColor("#555555"),
+            spaceAfter=0,
+            alignment=2,  # right
+        )
+        key_value_style = ParagraphStyle(
+            "CPKeyValue",
+            fontName=self.TITLE_FONT,
+            fontSize=self.TITLE_SIZE,
+            spaceAfter=2,
+            alignment=2,  # right
+        )
+        key_sub_style = ParagraphStyle(
+            "CPKeySub",
+            fontName=self.META_FONT,
+            fontSize=self.META_SIZE,
+            spaceAfter=1,
+            alignment=2,  # right
+        )
+
+        left_col = []
         if song.meta.title:
-            header.append(Paragraph(self._esc(song.meta.title), styles["title"]))
+            left_col.append(Paragraph(self._esc(song.meta.title), styles["title"]))
         for sub in song.meta.subtitle:
-            header.append(Paragraph(self._esc(sub), styles["subtitle"]))
+            left_col.append(Paragraph(self._esc(sub), styles["subtitle"]))
         if song.meta.artist:
-            header.append(
+            left_col.append(
                 Paragraph(self._esc(", ".join(song.meta.artist)), styles["artist"])
             )
         if song.meta.album:
-            header.append(
+            left_col.append(
                 Paragraph(self._esc(", ".join(song.meta.album)), styles["meta"])
             )
         if song.meta.composer:
-            header.append(
+            left_col.append(
                 Paragraph(self._esc(", ".join(song.meta.composer)), styles["meta"])
             )
-        meta_parts = []
+
+        right_col = []
         if song.meta.key:
-            meta_parts.append("Key: " + ", ".join(song.meta.key))
-        if song.meta.time:
-            meta_parts.append("Time: " + ", ".join(song.meta.time))
-        if song.meta.tempo:
-            meta_parts.append("Tempo: " + ", ".join(song.meta.tempo))
-        if song.meta.capo:
-            meta_parts.append("Capo: " + song.meta.capo)
-        if meta_parts:
-            header.append(
-                Paragraph(self._esc("  |  ".join(meta_parts)), styles["meta"])
+            right_col.append(Paragraph("KEY", key_label_style))
+            right_col.append(
+                Paragraph(self._esc(", ".join(song.meta.key)), key_value_style)
             )
-        if header:
-            story.extend(header)
-            story.append(Spacer(1, 0.2 * inch))
+        if song.meta.time:
+            right_col.append(
+                Paragraph(
+                    self._esc("Time: " + ", ".join(song.meta.time)), key_sub_style
+                )
+            )
+        if song.meta.tempo:
+            right_col.append(
+                Paragraph(
+                    self._esc("Tempo: " + ", ".join(song.meta.tempo)), key_sub_style
+                )
+            )
+        if song.meta.capo:
+            right_col.append(
+                Paragraph(self._esc("Capo: " + song.meta.capo), key_sub_style)
+            )
+
+        if left_col or right_col:
+            page_w, _ = doc.pagesize
+            avail_w = page_w - doc.leftMargin - doc.rightMargin
+            right_w = avail_w * 0.22
+            left_w = avail_w - right_w
+
+            if right_col:
+                tbl = Table(
+                    [[left_col or [""], right_col]],
+                    colWidths=[left_w, right_w],
+                    hAlign="LEFT",
+                )
+                tbl.setStyle(
+                    TableStyle(
+                        [
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                            ("TOPPADDING", (0, 0), (-1, -1), 0),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                            (
+                                "LINEAFTER",
+                                (0, 0),
+                                (0, -1),
+                                0.5,
+                                _colors.HexColor("#cccccc"),
+                            ),
+                        ]
+                    )
+                )
+                story.append(tbl)
+            else:
+                story.extend(left_col)
+            story.append(Spacer(1, 0.25 * inch))
 
         # --- Body ---
         for item in song.body:
