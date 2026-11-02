@@ -338,6 +338,25 @@ song.meta.key           # list[str]
 song.body               # list of SongItem (sections and lines)
 ```
 
+### Chord sheets
+
+Plain-text chord sheets, with chords on a line of their own above the lyrics,
+become ChordPro with `chordpro.chordsheet`. The caller decides which lines are
+section labels:
+
+```python
+from chordpro.chordsheet import chord_line, chord_sheet_to_chordpro, section_kind
+
+def section(line):
+    """(ChordPro section, label) for a line like "Verse 1:", else None."""
+    label = line.strip().rstrip(":")
+    kind = section_kind(label) if line.strip().endswith(":") else None
+    return (kind, label) if kind else None
+
+content = "\n".join(chord_sheet_to_chordpro(text.splitlines(), section))
+chord_line("G    D/F#   Em")   # the line, as it is a line of chords; else None
+```
+
 ### Rendering a single song
 
 ```python

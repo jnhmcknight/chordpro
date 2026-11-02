@@ -57,7 +57,6 @@ Then use ``{{ song.content | chordpro("pdf") }}`` in templates, or call
 ``render(song, semi_to_name, format="pdf")`` directly in Python.
 """
 
-from .extensions.flask import ChordPro
 from .constants import KEY_NAMES, FLAT, SHARP, DOUBLE_FLAT, DOUBLE_SHARP, NATURAL
 from .models import (
     # Content line types
@@ -199,3 +198,13 @@ __all__ = [
     "DOUBLE_SHARP",
     "NATURAL",
 ]
+
+
+def __getattr__(name):
+    # The Flask extension needs Flask, which only the "flask" extra installs:
+    # it is imported when asked for, so the rest works without it
+    if name == "ChordPro":
+        from .extensions.flask import ChordPro
+
+        return ChordPro
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
