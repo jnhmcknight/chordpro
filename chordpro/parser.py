@@ -182,15 +182,10 @@ def transpose_song(song: Song, target_key: str) -> Song:
         return dataclasses.replace(song, meta=new_meta)
 
     std_map = build_chord_semi_to_name("standard", prefer_flats=_key_prefers_flats(target_key))
+    shifted_map = {s: std_map[(s + shift) % 12] for s in range(12)}
 
     def _txpose_chord(chord: str) -> str:
-        m = re.match(r"^([A-G][#b♯♭]?)(.*)", chord, re.DOTALL)
-        if not m:
-            return chord
-        semi = _STANDARD_NOTE_TO_SEMI.get(_normalize_accidental(m.group(1)))
-        if semi is None:
-            return chord
-        return std_map[(semi + shift) % 12] + m.group(2)
+        return _convert_chord_root(chord, shifted_map)
 
     def _txpose_line(line):
         if isinstance(line, ChordLine):
@@ -237,17 +232,44 @@ def _normalize_accidental(root: str) -> str:
     return root.replace("#", SHARP).replace("b", FLAT)
 
 
+_NOTE_RE = re.compile(r"[A-G][#b♯♭]?")
+
+
+def _convert_note(note: str, semi_to_name: dict[int, str]) -> str | None:
+    """Map a single note name through *semi_to_name*.
+
+    Returns ``None`` when *note* is not a recognised note name.
+    """
+    normalized = _normalize_accidental(note)
+    semi = _STANDARD_NOTE_TO_SEMI.get(normalized)
+    if semi is None:
+        return None
+    return semi_to_name.get(semi, normalized)
+
+
 def _convert_chord_root(chord: str, semi_to_name: dict[int, str]) -> str:
-    """Translate the root note of *chord* into the target notation."""
-    m = re.match(r"^([A-G][#b♯♭]?)(.*)", chord, re.DOTALL)
+    """Translate the root note (and slash-bass note) of *chord* into the
+    target notation.
+
+    For slash chords such as ``G/B`` the bass note after the final ``/`` is
+    converted too, but only when it is a bare note name — so extensions like
+    ``C6/9`` are left untouched.
+    """
+    m = _NOTE_RE.match(chord)
     if not m:
         return chord
-    root, rest = m.group(1), m.group(2)
-    root_normalized = _normalize_accidental(root)
-    semi = _STANDARD_NOTE_TO_SEMI.get(root_normalized)
-    if semi is None:
+    root = _convert_note(m.group(0), semi_to_name)
+    if root is None:
         return chord
-    return semi_to_name.get(semi, root_normalized) + rest
+    rest = chord[m.end():]
+
+    head, slash, bass = rest.rpartition("/")
+    if slash and _NOTE_RE.fullmatch(bass):
+        new_bass = _convert_note(bass, semi_to_name)
+        if new_bass is not None:
+            rest = head + slash + new_bass
+
+    return root + rest
 
 
 def _parse_chord_line(line: str) -> ChordLine:

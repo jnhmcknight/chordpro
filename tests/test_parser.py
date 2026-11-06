@@ -105,6 +105,38 @@ class TestConvertChordRoot:
         s = build_chord_semi_to_name("standard")
         assert _convert_chord_root("Cb", s) == "Cb"
 
+    def test_slash_bass_converted(self):
+        s = build_chord_semi_to_name("latin")
+        assert _convert_chord_root("G/B", s) == "Sol/Si"
+
+    def test_slash_bass_with_suffix_converted(self):
+        s = build_chord_semi_to_name("latin")
+        assert _convert_chord_root("Am7/G", s) == "Lam7/Sol"
+
+    def test_slash_bass_german_flat(self):
+        # B♭ in German notation is "B"
+        s = build_chord_semi_to_name("german")
+        assert _convert_chord_root("C/Bb", s) == "C/B"
+
+    def test_slash_bass_accidental_normalized(self):
+        s = build_chord_semi_to_name("standard", prefer_flats=True)
+        assert _convert_chord_root("C/Bb", s) == "C/B♭"
+
+    def test_slash_extension_not_treated_as_bass(self):
+        # C6/9 is an extension, not a slash chord
+        s = build_chord_semi_to_name("latin")
+        assert _convert_chord_root("C6/9", s) == "Do6/9"
+
+    def test_slash_unrecognised_bass_passthrough(self):
+        s = build_chord_semi_to_name("standard")
+        assert _convert_chord_root("G/Cb", s) == "G/Cb"
+
+    def test_slash_bass_nashville(self):
+        from chordpro.parser import build_nashville_semi_to_name
+
+        s = build_nashville_semi_to_name(0)
+        assert _convert_chord_root("G/B", s) == "5/7"
+
 
 # ---------------------------------------------------------------------------
 # _normalize_accidental
@@ -515,6 +547,23 @@ class TestTransposeSong:
         song = _song_in_key("C", "C♯")  # semitone 1
         result = transpose_song(song, "F")
         assert result.body[0].segments[0].chord == "G♭"
+
+    def test_slash_chord_bass_transposed(self):
+        song = _song_in_key("C", "G/C", "D/F#", "Am7/G")
+        result = transpose_song(song, "D")
+        chords = [line.segments[0].chord for line in result.body]
+        assert chords == ["A/D", "E/G♯", "Bm7/A"]
+
+    def test_slash_chord_bass_uses_target_key_spelling(self):
+        # C → F: bass E (4) + 5 = A; bass F# (6) + 5 = B; bass G# (8) + 5 = C♯ → D♭ in F
+        song = _song_in_key("C", "C/G#")
+        result = transpose_song(song, "F")
+        assert result.body[0].segments[0].chord == "F/D♭"
+
+    def test_slash_extension_not_transposed(self):
+        song = _song_in_key("C", "C6/9")
+        result = transpose_song(song, "D")
+        assert result.body[0].segments[0].chord == "D6/9"
 
     def test_non_chord_segment_none_preserved(self):
         from chordpro.models import ChordLine, SongMeta
