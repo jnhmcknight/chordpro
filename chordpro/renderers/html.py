@@ -125,14 +125,26 @@ class HtmlRenderer(BaseRenderer):
         self, chord_line: ChordLine, semi_to_name: dict | None
     ) -> str:
         buf = ['<div class="cp-line">']
-        for seg in chord_line.segments:
+        for index, seg in enumerate(chord_line.segments):
             if seg.chord is not None:
                 chord_html, data_attr = self._chord_display(seg.chord, semi_to_name)
                 lyric_html = _html.escape(seg.lyric) if seg.lyric else "&nbsp;"
+                if chord_line.splits_word(index):
+                    # Within a word: the page's stylesheet fills .cp-hyphen
+                    # with hyphens wherever the chord, wider than its
+                    # syllable, leaves a gap before the rest of the word
+                    lyric_html = (
+                        f'<span class="cp-lyric-row"><span class="cp-lyric">{lyric_html}</span>'
+                        f'<span class="cp-hyphen" aria-hidden="true"></span></span>'
+                    )
+                    unit_class = "cp-unit cp-split"
+                else:
+                    lyric_html = f'<span class="cp-lyric">{lyric_html}</span>'
+                    unit_class = "cp-unit"
                 buf.append(
-                    f'<span class="cp-unit">'
+                    f'<span class="{unit_class}">'
                     f'<span class="cp-chord"{data_attr}>{chord_html}</span>'
-                    f'<span class="cp-lyric">{lyric_html}</span>'
+                    f"{lyric_html}"
                     f"</span>"
                 )
             elif seg.lyric:

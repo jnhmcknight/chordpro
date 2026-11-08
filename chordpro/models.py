@@ -36,11 +36,32 @@ class Segment:
     lyric: str
 
 
+def _in_word(char: str) -> bool:
+    """Whether *char* is part of a word: a letter or digit, or an apostrophe
+    (as in "don't")."""
+    return char.isalnum() or char in "'’"
+
+
 @dataclass
 class ChordLine:
     """A line that contains at least one chord annotation."""
 
     segments: list[Segment] = field(default_factory=list)
+
+    def splits_word(self, index: int) -> bool:
+        """Whether segment *index*'s lyric stops partway through a word that
+        the next segment's lyric finishes, as "A" does in ``A[G]mazing``.
+
+        Where the chord above pulls the word apart, renderers fill the gap
+        with hyphens. A lyric ending in a hyphen of its own already shows the
+        split, so it isn't one here."""
+        if index + 1 >= len(self.segments):
+            return False
+        lyric = self.segments[index].lyric
+        following = self.segments[index + 1].lyric
+        return (
+            bool(lyric and following) and _in_word(lyric[-1]) and _in_word(following[0])
+        )
 
 
 @dataclass

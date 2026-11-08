@@ -16,6 +16,15 @@ from ..parser import _convert_chord_root
 from .base import BaseRenderer
 
 
+def hyphens(width: int) -> str:
+    """*width* characters of hyphens a space apart, to fill the gap a chord
+    leaves in a word: "-", "- ", "- -", "- - "…"""
+    if width <= 0:
+        return ""
+    count = (width + 1) // 2
+    return " ".join("-" * count).ljust(width)
+
+
 class TextRenderer(BaseRenderer):
     """Renders a ``Song`` to a plain-text ``str``.
 
@@ -100,7 +109,7 @@ class TextRenderer(BaseRenderer):
         if isinstance(line, ChordLine):
             chord_row = ""
             lyric_row = ""
-            for seg in line.segments:
+            for index, seg in enumerate(line.segments):
                 if seg.chord is not None:
                     chord = self._finalize_chord(
                         _convert_chord_root(seg.chord, semi_to_name)
@@ -108,6 +117,14 @@ class TextRenderer(BaseRenderer):
                         else seg.chord
                     )
                     lyric = seg.lyric or ""
+                    if line.splits_word(index):
+                        # The rest of the word follows on, unless the chord
+                        # (and a space after it) is wider: then hyphens fill
+                        # the gap it leaves
+                        width = max(len(chord) + 1, len(lyric))
+                        chord_row += chord.ljust(width)
+                        lyric_row += lyric + hyphens(width - len(lyric))
+                        continue
                     width = max(len(chord), len(lyric))
                     chord_row += chord.ljust(width) + " "
                     lyric_row += lyric.ljust(width) + " "

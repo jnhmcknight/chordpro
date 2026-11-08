@@ -17,11 +17,16 @@ from .base import BaseRenderer
 
 
 class _ChordLineFlowable:
-    """A reportlab Flowable that draws a chord-over-lyric line."""
+    """A reportlab Flowable that draws a chord-over-lyric line.
+
+    Each segment is as wide as its chord (and a pad) or its lyric, whichever
+    is wider. Within a word (see ``ChordLine.splits_word``) the rest of the
+    word follows straight on, unless the chord is wider: then hyphens fill
+    the gap it leaves, one or more, evenly spaced."""
 
     def __init__(
         self,
-        segments,
+        chord_line,
         semi_to_name,
         chord_font: str,
         chord_size: float,
@@ -39,7 +44,8 @@ class _ChordLineFlowable:
             pass
 
         self._flowable_cls = _Inner
-        self.segments = segments
+        self.line = chord_line
+        self.segments = chord_line.segments
         self.semi_to_name = semi_to_name
         self.chord_font = chord_font
         self.chord_size = chord_size
@@ -65,55 +71,53 @@ class _ChordLineFlowable:
             chord = chord.replace(SHARP, "#").replace(FLAT, "b")
         return chord
 
-    def _build(self):
+    def _layout(self) -> list[tuple[str | None, str, float, float, int]]:
+        """Each segment's chord, lyric, width and the gap after its lyric,
+        and how many hyphens fill that gap (none but within a word)."""
         from reportlab.pdfbase.pdfmetrics import stringWidth
+
+        hyphen_w = stringWidth("-", self.lyric_font, self.lyric_size)
+        # A hyphen with a little room either side, and the space each takes
+        # when a wide gap has several
+        least_gap = hyphen_w + self.seg_pad
+        step = hyphen_w * 3
+        laid_out = []
+        for index, seg in enumerate(self.segments):
+            chord = self._get_chord(seg)
+            lyric = seg.lyric or ""
+            cw = stringWidth(chord, self.chord_font, self.chord_size) if chord else 0.0
+            lw = stringWidth(lyric, self.lyric_font, self.lyric_size) if lyric else 0.0
+            if not self.line.splits_word(index):
+                laid_out.append((chord, lyric, max(cw, lw) + self.seg_pad, 0.0, 0))
+                continue
+            gap = (cw + self.seg_pad - lw) if chord else 0.0
+            if gap <= 0:
+                laid_out.append((chord, lyric, lw, 0.0, 0))
+                continue
+            gap = max(gap, least_gap)
+            laid_out.append((chord, lyric, lw + gap, gap, max(1, int(gap // step))))
+        return laid_out
+
+    def _build(self):
         from reportlab.platypus.flowables import Flowable
 
         outer = self
 
         class ChordLine(Flowable):
             def wrap(self, avail_w, avail_h):
-                total_w = 0.0
-                for seg in outer.segments:
-                    chord = outer._get_chord(seg)
-                    cw = (
-                        stringWidth(chord, outer.chord_font, outer.chord_size)
-                        if chord
-                        else 0.0
-                    )
-                    lw = (
-                        stringWidth(seg.lyric or "", outer.lyric_font, outer.lyric_size)
-                        if seg.lyric
-                        else 0.0
-                    )
-                    total_w += max(cw, lw) + outer.seg_pad
+                total_w = sum(width for _, _, width, _, _ in outer._layout())
                 self.width = total_w
                 self.height = outer.chord_size + outer.gap + outer.lyric_size + 2
                 return (total_w, self.height)
 
             def draw(self):
-                from reportlab.pdfbase.pdfmetrics import stringWidth
                 from reportlab.lib import colors as _colors
 
                 lyric_y = 0.0
                 chord_y = outer.lyric_size + outer.gap
                 x = 0.0
 
-                for seg in outer.segments:
-                    chord = outer._get_chord(seg)
-                    lyric = seg.lyric or ""
-                    cw = (
-                        stringWidth(chord, outer.chord_font, outer.chord_size)
-                        if chord
-                        else 0.0
-                    )
-                    lw = (
-                        stringWidth(lyric, outer.lyric_font, outer.lyric_size)
-                        if lyric
-                        else 0.0
-                    )
-                    seg_w = max(cw, lw) + outer.seg_pad
-
+                for chord, lyric, seg_w, gap, hyphens in outer._layout():
                     if chord:
                         self.canv.setFont(outer.chord_font, outer.chord_size)
                         self.canv.setFillColor(outer.chord_color)
@@ -123,6 +127,12 @@ class _ChordLineFlowable:
                         self.canv.setFont(outer.lyric_font, outer.lyric_size)
                         self.canv.setFillColor(_colors.black)
                         self.canv.drawString(x, lyric_y, lyric)
+
+                    # The word's hyphens, evenly across the gap after it
+                    start = x + seg_w - gap
+                    for n in range(hyphens):
+                        centre = start + gap * (n + 0.5) / hyphens
+                        self.canv.drawCentredString(centre, lyric_y, "-")
 
                     x += seg_w
 
@@ -681,7 +691,7 @@ class PdfRenderer(BaseRenderer):
 
     def _chord_line_flowable(self, chord_line, semi_to_name, chord_color):
         return _ChordLineFlowable(
-            segments=chord_line.segments,
+            chord_line=chord_line,
             semi_to_name=semi_to_name,
             chord_font=self.CHORD_FONT,
             chord_size=self.CHORD_SIZE,
