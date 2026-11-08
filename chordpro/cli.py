@@ -86,9 +86,13 @@ def convert(
         semi_to_name = build_chord_semi_to_name(notation)
 
     if len(songs) == 1:
-        result = render(songs[0], semi_to_name, format=format, ascii_accidentals=ascii_accidentals)
+        result = render(
+            songs[0], semi_to_name, format=format, ascii_accidentals=ascii_accidentals
+        )
     else:
-        result = render_many(songs, semi_to_name, format=format, ascii_accidentals=ascii_accidentals)
+        result = render_many(
+            songs, semi_to_name, format=format, ascii_accidentals=ascii_accidentals
+        )
 
     if isinstance(result, bytes):
         import sys

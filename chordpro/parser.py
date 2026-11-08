@@ -113,7 +113,9 @@ _META_LIST: frozenset[str] = frozenset(
 )
 
 
-def build_chord_semi_to_name(notation: str, prefer_flats: bool = False) -> dict[int, str]:
+def build_chord_semi_to_name(
+    notation: str, prefer_flats: bool = False
+) -> dict[int, str]:
     """Return a dict mapping chromatic semitone → chord root name.
 
     Falls back to ``"standard"`` for unknown notations.
@@ -145,7 +147,9 @@ def key_to_semitone(key: str) -> int:
     return _STANDARD_NOTE_TO_SEMI.get(_normalize_accidental(root), 0)
 
 
-def build_transposed_semi_to_name(shift: int, notation: str = "standard") -> dict[int, str]:
+def build_transposed_semi_to_name(
+    shift: int, notation: str = "standard"
+) -> dict[int, str]:
     """Return a semitone→chord-root dict that transposes by *shift* semitones.
 
     The returned dict is suitable as the *semi_to_name* argument of any
@@ -181,7 +185,9 @@ def transpose_song(song: Song, target_key: str) -> Song:
     if shift == 0:
         return dataclasses.replace(song, meta=new_meta)
 
-    std_map = build_chord_semi_to_name("standard", prefer_flats=_key_prefers_flats(target_key))
+    std_map = build_chord_semi_to_name(
+        "standard", prefer_flats=_key_prefers_flats(target_key)
+    )
     shifted_map = {s: std_map[(s + shift) % 12] for s in range(12)}
 
     def _txpose_chord(chord: str) -> str:
@@ -189,13 +195,17 @@ def transpose_song(song: Song, target_key: str) -> Song:
 
     def _txpose_line(line):
         if isinstance(line, ChordLine):
-            return ChordLine(segments=[
-                Segment(
-                    chord=_txpose_chord(seg.chord) if seg.chord is not None else None,
-                    lyric=seg.lyric,
-                )
-                for seg in line.segments
-            ])
+            return ChordLine(
+                segments=[
+                    Segment(
+                        chord=(
+                            _txpose_chord(seg.chord) if seg.chord is not None else None
+                        ),
+                        lyric=seg.lyric,
+                    )
+                    for seg in line.segments
+                ]
+            )
         return line
 
     new_body = []
@@ -203,7 +213,9 @@ def transpose_song(song: Song, target_key: str) -> Song:
         item_lines = getattr(item, "lines", None)
         if item_lines is not None:
             new_body.append(
-                dataclasses.replace(item, lines=[_txpose_line(l) for l in item_lines])
+                dataclasses.replace(
+                    item, lines=[_txpose_line(line) for line in item_lines]
+                )
             )
         else:
             new_body.append(_txpose_line(item))
@@ -261,7 +273,7 @@ def _convert_chord_root(chord: str, semi_to_name: dict[int, str]) -> str:
     root = _convert_note(m.group(0), semi_to_name)
     if root is None:
         return chord
-    rest = chord[m.end():]
+    rest = chord[m.end() :]
 
     head, slash, bass = rest.rpartition("/")
     if slash and _NOTE_RE.fullmatch(bass):

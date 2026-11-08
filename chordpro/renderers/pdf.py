@@ -325,7 +325,6 @@ class PdfRenderer(BaseRenderer):
         the chord-line flowable pick up the TTF font instead of Helvetica.
         Has no effect if no suitable font file can be found.
         """
-        import os
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
 

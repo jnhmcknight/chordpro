@@ -467,11 +467,9 @@ class TestBuildTransposedSemiToName:
 
 def _song_in_key(key: str, *chord_strings: str) -> Song:
     """Helper: build a Song in *key* with one ChordLine per chord string."""
-    from chordpro.models import ChordLine, Segment, SongMeta
+    from chordpro.models import ChordLine, Segment
 
-    body = [
-        ChordLine(segments=[Segment(chord=c, lyric="word")]) for c in chord_strings
-    ]
+    body = [ChordLine(segments=[Segment(chord=c, lyric="word")]) for c in chord_strings]
     return Song(meta=SongMeta(key=[key]), body=body)
 
 
@@ -566,7 +564,7 @@ class TestTransposeSong:
         assert result.body[0].segments[0].chord == "D6/9"
 
     def test_non_chord_segment_none_preserved(self):
-        from chordpro.models import ChordLine, SongMeta
+        from chordpro.models import ChordLine
 
         song = Song(
             meta=SongMeta(key=["C"]),
@@ -577,7 +575,7 @@ class TestTransposeSong:
         assert result.body[0].segments[0].lyric == "lyrics only"
 
     def test_lyric_line_preserved_unchanged(self):
-        from chordpro.models import LyricLine, SongMeta
+        from chordpro.models import LyricLine
 
         song = Song(
             meta=SongMeta(key=["C"]),
@@ -596,7 +594,7 @@ class TestTransposeSong:
         assert chords == ["G", "D"]
 
     def test_song_without_key_meta_defaults_to_c(self):
-        from chordpro.models import ChordLine, SongMeta
+        from chordpro.models import ChordLine
 
         song = Song(
             meta=SongMeta(),  # no key set
@@ -612,7 +610,7 @@ class TestTransposeSong:
         assert song.meta.key == ["C"]
 
     def test_unrecognised_chord_root_passed_through(self):
-        from chordpro.models import ChordLine, SongMeta
+        from chordpro.models import ChordLine
 
         song = Song(
             meta=SongMeta(key=["C"]),
@@ -624,7 +622,7 @@ class TestTransposeSong:
     def test_unknown_accidental_combo_passed_through(self):
         # "Cb" normalises to "C♭" which is not in _STANDARD_NOTE_TO_SEMI;
         # the chord should be returned unchanged.
-        from chordpro.models import ChordLine, SongMeta
+        from chordpro.models import ChordLine
 
         song = Song(
             meta=SongMeta(key=["C"]),

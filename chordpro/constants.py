@@ -91,23 +91,57 @@ _NASHVILLE_CHROMATIC: dict[int, str] = {
 
 # Semitone → root name, always using sharps for chromatic notes.
 _SHARP_SEMI_TO_NAME: dict[int, str] = {
-    0: "C", 1: "C♯", 2: "D", 3: "D♯", 4: "E",
-    5: "F", 6: "F♯", 7: "G", 8: "G♯", 9: "A", 10: "A♯", 11: "B",
+    0: "C",
+    1: "C♯",
+    2: "D",
+    3: "D♯",
+    4: "E",
+    5: "F",
+    6: "F♯",
+    7: "G",
+    8: "G♯",
+    9: "A",
+    10: "A♯",
+    11: "B",
 }
 
 # Semitone → root name, always using flats for chromatic notes.
 _FLAT_SEMI_TO_NAME: dict[int, str] = {
-    0: "C", 1: "D♭", 2: "D", 3: "E♭", 4: "E",
-    5: "F", 6: "G♭", 7: "G", 8: "A♭", 9: "A", 10: "B♭", 11: "B",
+    0: "C",
+    1: "D♭",
+    2: "D",
+    3: "E♭",
+    4: "E",
+    5: "F",
+    6: "G♭",
+    7: "G",
+    8: "A♭",
+    9: "A",
+    10: "B♭",
+    11: "B",
 }
 
 # Keys (by root name) whose chromatic chords should use flat accidentals.
 # Major flat keys: F, B♭, E♭, A♭, D♭, G♭, C♭
 # Their relative minors: Dm, Gm, Cm, Fm, B♭m, E♭m, A♭m
-_FLAT_PREFERENCE_KEYS: frozenset[str] = frozenset({
-    "F", "B♭", "E♭", "A♭", "D♭", "G♭", "C♭",
-    "Dm", "Gm", "Cm", "Fm", "B♭m", "E♭m", "A♭m",
-})
+_FLAT_PREFERENCE_KEYS: frozenset[str] = frozenset(
+    {
+        "F",
+        "B♭",
+        "E♭",
+        "A♭",
+        "D♭",
+        "G♭",
+        "C♭",
+        "Dm",
+        "Gm",
+        "Cm",
+        "Fm",
+        "B♭m",
+        "E♭m",
+        "A♭m",
+    }
+)
 
 # Standard notation root names → chromatic semitone (C=0 … B=11)
 _STANDARD_NOTE_TO_SEMI = {

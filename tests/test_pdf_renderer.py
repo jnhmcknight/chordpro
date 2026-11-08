@@ -412,14 +412,18 @@ class TestDeriveVariant:
         oblique = tmp_path / "MyFont-Oblique.ttf"
         regular.write_bytes(b"")
         oblique.write_bytes(b"")
-        assert PdfRenderer._derive_font_variant(str(regular), italic=True) == str(oblique)
+        assert PdfRenderer._derive_font_variant(str(regular), italic=True) == str(
+            oblique
+        )
 
     def test_italic_italic_suffix(self, tmp_path):
         regular = tmp_path / "MyFont.ttf"
         italic = tmp_path / "MyFont-Italic.ttf"
         regular.write_bytes(b"")
         italic.write_bytes(b"")
-        assert PdfRenderer._derive_font_variant(str(regular), italic=True) == str(italic)
+        assert PdfRenderer._derive_font_variant(str(regular), italic=True) == str(
+            italic
+        )
 
     def test_strips_regular_before_deriving(self, tmp_path):
         regular = tmp_path / "NotoSans-Regular.ttf"
@@ -541,13 +545,17 @@ class TestSetupUnicodeFont:
     def test_render_calls_setup_unicode_font(self, monkeypatch):
         """render() must call _setup_unicode_font() before building the document."""
         calls = []
-        monkeypatch.setattr(PdfRenderer, "_setup_unicode_font", lambda self: calls.append(1))
+        monkeypatch.setattr(
+            PdfRenderer, "_setup_unicode_font", lambda self: calls.append(1)
+        )
         PdfRenderer().render(Song())
         assert calls
 
     def test_render_many_calls_setup_unicode_font(self, monkeypatch):
         """render_many() must call _setup_unicode_font() before building."""
         calls = []
-        monkeypatch.setattr(PdfRenderer, "_setup_unicode_font", lambda self: calls.append(1))
+        monkeypatch.setattr(
+            PdfRenderer, "_setup_unicode_font", lambda self: calls.append(1)
+        )
         PdfRenderer().render_many([Song()])
         assert calls

@@ -144,11 +144,16 @@ class TestChordSheetToChordPro:
     def test_tab_section(self):
         text = "Intro:\ne|---0---3---|\nB|---1---0---|\n\nVerse:\nG\nHello"
         result = _convert(text)
-        assert result.startswith("{start_of_tab: Intro}\ne|---0---3---|\nB|---1---0---|\n{end_of_tab}")
+        assert result.startswith(
+            "{start_of_tab: Intro}\ne|---0---3---|\nB|---1---0---|\n{end_of_tab}"
+        )
         assert "{start_of_verse: Verse}\n[G]Hello\n{end_of_verse}" in result
 
     def test_chords_without_lyric(self):
-        assert _convert("Intro:\nG  C  D\n") == "{start_of_intro: Intro}\n[G]   [C]   [D]\n{end_of_intro}"
+        assert (
+            _convert("Intro:\nG  C  D\n")
+            == "{start_of_intro: Intro}\n[G]   [C]   [D]\n{end_of_intro}"
+        )
 
     def test_trims_blank_lines(self):
         assert _convert("\n\nG\nHello\n\n") == "[G]Hello"

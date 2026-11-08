@@ -30,7 +30,6 @@ from chordpro.models import (
     Verse,
     Chorus,
 )
-from chordpro.models import SongMeta
 from chordpro.parser import build_chord_semi_to_name
 from chordpro.renderers import (
     BaseRenderer,
@@ -413,16 +412,22 @@ class TestTextRendererMetadata:
         return Song(meta=SongMeta(**kwargs))
 
     def test_title_in_output(self):
-        assert "Amazing Grace" in self.renderer.render(self._meta_song(title="Amazing Grace"))
+        assert "Amazing Grace" in self.renderer.render(
+            self._meta_song(title="Amazing Grace")
+        )
 
     def test_subtitle_in_output(self):
         assert "Hymn" in self.renderer.render(self._meta_song(subtitle=["Hymn"]))
 
     def test_artist_in_output(self):
-        assert "John Newton" in self.renderer.render(self._meta_song(artist=["John Newton"]))
+        assert "John Newton" in self.renderer.render(
+            self._meta_song(artist=["John Newton"])
+        )
 
     def test_album_in_output(self):
-        assert "Olney Hymns" in self.renderer.render(self._meta_song(album=["Olney Hymns"]))
+        assert "Olney Hymns" in self.renderer.render(
+            self._meta_song(album=["Olney Hymns"])
+        )
 
     def test_composer_in_output(self):
         result = self.renderer.render(self._meta_song(composer=["William Walker"]))
@@ -550,7 +555,9 @@ class TestQuillDeltaRendererMetadata:
         return Song(meta=SongMeta(**kwargs))
 
     def _inserts(self, song_obj, semi_to_name=None):
-        return [op["insert"] for op in self.renderer.render(song_obj, semi_to_name)["ops"]]
+        return [
+            op["insert"] for op in self.renderer.render(song_obj, semi_to_name)["ops"]
+        ]
 
     def test_title_is_bold_header(self):
         ops = self.renderer.render(self._meta_song(title="Amazing Grace"))["ops"]
@@ -1082,7 +1089,9 @@ class TestQuillDeltaRendererAsciiDefaults:
 
     def test_ascii_override_flat(self):
         cl = chord_line(Segment("Bb", "word"))
-        ops = QuillDeltaRenderer(ascii_accidentals=True).render(song(cl), _STD_FLAT)["ops"]
+        ops = QuillDeltaRenderer(ascii_accidentals=True).render(song(cl), _STD_FLAT)[
+            "ops"
+        ]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "Bb"
 
@@ -1102,30 +1111,42 @@ class TestRenderDispatchAsciiAccidentals:
     _cl = chord_line(Segment("Bb", "word"))
 
     def test_text_none_uses_ascii_default(self):
-        result = render(song(self._cl), _STD_FLAT, format="text", ascii_accidentals=None)
+        result = render(
+            song(self._cl), _STD_FLAT, format="text", ascii_accidentals=None
+        )
         assert "Bb" in result
         assert "♭" not in result
 
     def test_text_explicit_false_uses_unicode(self):
-        result = render(song(self._cl), _STD_FLAT, format="text", ascii_accidentals=False)
+        result = render(
+            song(self._cl), _STD_FLAT, format="text", ascii_accidentals=False
+        )
         assert "B♭" in result
 
     def test_html_none_uses_unicode_default(self):
-        result = render(song(self._cl), _STD_FLAT, format="html", ascii_accidentals=None)
+        result = render(
+            song(self._cl), _STD_FLAT, format="html", ascii_accidentals=None
+        )
         assert ">B♭<" in result
 
     def test_html_explicit_true_uses_ascii(self):
-        result = render(song(self._cl), _STD_FLAT, format="html", ascii_accidentals=True)
+        result = render(
+            song(self._cl), _STD_FLAT, format="html", ascii_accidentals=True
+        )
         assert ">Bb<" in result
         assert "♭" not in result
 
     def test_quill_delta_none_uses_unicode_default(self):
-        ops = render(song(self._cl), _STD_FLAT, format="quill-delta", ascii_accidentals=None)["ops"]
+        ops = render(
+            song(self._cl), _STD_FLAT, format="quill-delta", ascii_accidentals=None
+        )["ops"]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "B♭"
 
     def test_quill_delta_explicit_true_uses_ascii(self):
-        ops = render(song(self._cl), _STD_FLAT, format="quill-delta", ascii_accidentals=True)["ops"]
+        ops = render(
+            song(self._cl), _STD_FLAT, format="quill-delta", ascii_accidentals=True
+        )["ops"]
         chord_ops = [op for op in ops if op.get("attributes", {}).get("chord")]
         assert chord_ops[0]["insert"] == "Bb"
 
@@ -1134,21 +1155,29 @@ class TestRenderManyDispatchAsciiAccidentals:
     _cl = chord_line(Segment("F#", "word"))
 
     def test_html_none_uses_unicode_default(self):
-        result = render_many([song(self._cl)], _STD, format="html", ascii_accidentals=None)
+        result = render_many(
+            [song(self._cl)], _STD, format="html", ascii_accidentals=None
+        )
         assert ">F♯<" in result
 
     def test_html_explicit_true_uses_ascii(self):
-        result = render_many([song(self._cl)], _STD, format="html", ascii_accidentals=True)
+        result = render_many(
+            [song(self._cl)], _STD, format="html", ascii_accidentals=True
+        )
         assert ">F#<" in result
         assert "♯" not in result
 
     def test_text_none_uses_ascii_default(self):
-        result = render_many([song(self._cl)], _STD, format="text", ascii_accidentals=None)
+        result = render_many(
+            [song(self._cl)], _STD, format="text", ascii_accidentals=None
+        )
         assert "F#" in result
         assert "♯" not in result
 
     def test_text_explicit_false_uses_unicode(self):
-        result = render_many([song(self._cl)], _STD, format="text", ascii_accidentals=False)
+        result = render_many(
+            [song(self._cl)], _STD, format="text", ascii_accidentals=False
+        )
         assert "F♯" in result
 
 

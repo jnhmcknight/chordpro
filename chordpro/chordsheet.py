@@ -12,6 +12,7 @@ Usage::
 
     chordpro = "\n".join(chord_sheet_to_chordpro(text.splitlines(), section))
 """
+
 import re
 from collections.abc import Callable, Iterable
 
@@ -72,14 +73,19 @@ def place_chords(chords: str, lyric: str = "") -> list[str]:
     """ChordPro for a line of chords over *lyric*: each chord goes in brackets
     where it stood above the lyric. Instructions come first, as comments."""
     had_lyric = bool(lyric.strip())
-    comments = [f"{{comment: {m.group(0)[1:-1].strip()}}}" for m in _INSTRUCTION_RE.finditer(chords)]
+    comments = [
+        f"{{comment: {m.group(0)[1:-1].strip()}}}"
+        for m in _INSTRUCTION_RE.finditer(chords)
+    ]
     chords = _INSTRUCTION_RE.sub(lambda m: " " * len(m.group(0)), chords)
     placed = [(m.start(), m.group(0)) for m in re.finditer(r"\S+", chords)]
     if placed:
         lyric = lyric.ljust(placed[-1][0])
     for column, chord in reversed(placed):
         lyric = f"{lyric[:column]}[{chord}]{lyric[column:]}"
-    return comments + ([lyric.rstrip() if had_lyric else lyric.strip()] if placed else [])
+    return comments + (
+        [lyric.rstrip() if had_lyric else lyric.strip()] if placed else []
+    )
 
 
 def chord_sheet_to_chordpro(
@@ -117,7 +123,9 @@ def chord_sheet_to_chordpro(
     def open_section(kind: str, label: str = ""):
         nonlocal open_kind, open_at
         close()
-        body.append(f"{{start_of_{kind}: {label}}}" if label else f"{{start_of_{kind}}}")
+        body.append(
+            f"{{start_of_{kind}: {label}}}" if label else f"{{start_of_{kind}}}"
+        )
         open_kind, open_at = kind, len(body)
 
     label = ""
