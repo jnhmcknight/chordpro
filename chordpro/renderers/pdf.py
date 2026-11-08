@@ -628,7 +628,8 @@ class PdfRenderer(BaseRenderer):
 
             if right_col:
                 tbl = Table(
-                    [[left_col or [""], right_col]],
+                    # An empty cell is "": a list holds flowables, not text
+                    [[left_col or "", right_col]],
                     colWidths=[left_w, right_w],
                     hAlign="LEFT",
                 )
