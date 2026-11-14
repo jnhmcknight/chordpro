@@ -35,8 +35,10 @@ class TextRenderer(BaseRenderer):
     compatibility.  Pass ``ascii_accidentals=False`` to use Unicode symbols.
     """
 
-    def __init__(self, ascii_accidentals: bool = True) -> None:
-        super().__init__(ascii_accidentals=ascii_accidentals)
+    def __init__(
+        self, ascii_accidentals: bool = True, notation: str | None = None
+    ) -> None:
+        super().__init__(ascii_accidentals=ascii_accidentals, notation=notation)
 
     def render(self, song: Song, semi_to_name: dict | None = None) -> str:
         sections = []
@@ -44,9 +46,12 @@ class TextRenderer(BaseRenderer):
         if header:
             sections.append(header)
         body_parts = []
+        semi_to_name = self._song_names(song, semi_to_name)
         for item in song.body:
             if hasattr(item, "lines"):
-                body_parts.append(self._render_section(item, semi_to_name))
+                body_parts.append(
+                    self._render_section(item, self._section_names(item, semi_to_name))
+                )
             else:
                 result = self._render_line(item, semi_to_name)
                 if result is not None:
@@ -97,8 +102,9 @@ class TextRenderer(BaseRenderer):
 
     def _render_section(self, section, semi_to_name: dict | None) -> str:
         lines = []
-        if section.label:
-            lines.append(section.label)
+        label = self._section_label(section)
+        if label:
+            lines.append(label)
         for line in section.lines:
             result = self._render_line(line, semi_to_name)
             if result is not None:

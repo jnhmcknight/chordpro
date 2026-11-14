@@ -259,7 +259,7 @@ All section directives accept an optional label override: `{start_of_verse: Vers
 | `{start_of_textblock}` / `{end_of_textblock}` | | `TextBlock` |
 | `{start_of_*}` / `{end_of_*}` | | `Section` (generic) |
 
-All sections render as `<div class="cp-section" data-section="<kind>">` in HTML.
+All sections render as `<div class="cp-section" data-section="<kind>">` in HTML. A section played in a key of its own (see [Sections in their own key](#sections-in-their-own-key)) also has `data-key="<key>"`, and its key after its label.
 
 ### Content directives
 
@@ -296,8 +296,9 @@ Style the rendered HTML output with these classes:
 | Class | Element |
 |-------|---------|
 | `cp-song` | Wrapper for a single song in multi-song `render_many()` HTML output (`div`) |
-| `cp-section` | Section wrapper (`div`); `data-section` holds the kind |
+| `cp-section` | Section wrapper (`div`); `data-section` holds the kind, and `data-key` the standard name of its own key, if it has one |
 | `cp-section-label` | Section heading (`div`) |
+| `cp-section-key` | The section's own key, after its label: `Chorus – <span class="cp-section-key">A</span>` (`span`) |
 | `cp-line` | A line containing chords and lyrics (`div`) |
 | `cp-unit` | A chord+lyric pair (`span`) |
 | `cp-chord` | Chord name (`span`); `data-chord` holds the standard-notation root |
@@ -373,6 +374,15 @@ semi_to_name = build_nashville_semi_to_name(key_to_semitone("G"))
 html = render(song, semi_to_name)
 ```
 
+Pass `notation=` instead of a `semi_to_name` to have the renderer name the chords itself, for the song's key (Nashville numbers from its root; in standard notation, the flats or sharps it prefers) and for each section played in a key of its own:
+
+```python
+html = render(song, format="html", notation="nashville")
+pdf  = render(song, format="pdf", notation="standard")
+```
+
+`build_key_semi_to_name(notation, key)` builds the same map for a key, and `format_key(key, notation)` names a key in a notation (`format_key("A", "latin")` → `"La"`; Nashville and unknown keys as they are).
+
 Backward-compatible one-shot helpers are also available:
 
 ```python
@@ -401,6 +411,8 @@ with open("songbook.pdf", "wb") as f:
     f.write(pdf)
 ```
 
+With `notation=`, each song's chords are named for its own key, which a single `semi_to_name` can't do in Nashville notation: `render_many(songs, format="pdf", notation="nashville")`.
+
 | Format | Separator |
 |--------|-----------|
 | `"html"` | Each song wrapped in `<div class="cp-song">` |
@@ -409,6 +421,23 @@ with open("songbook.pdf", "wb") as f:
 | `"pdf"` | A hard page break (`PageBreak`) between songs |
 
 Custom renderers that do not override `render_many()` receive a `list` of individual `render()` results.
+
+### Sections in their own key
+
+A song's parts are its sections (but ABC, Lilypond, SVG and text blocks) and its `{chorus}` references, in order; `song_parts(song)` lists them, and a part's index there names it. `transpose_parts(song, keys)` plays each part given in `keys` (index → key) in that key, as when a set modulates for its last chorus:
+
+```python
+from chordpro import parse, render, song_parts, transpose_parts, transpose_song
+
+song = transpose_song(parse(content), "G")   # the whole song, in G
+labels = [part.label for part in song_parts(song)]   # ["Verse", "Chorus", "Bridge", "Chorus"]
+song = transpose_parts(song, {3: "A"})       # its last chorus, up a step
+html = render(song, notation="standard")
+```
+
+The part's chords are transposed from the key it was in to its new key and spelled for it, and its `key` is set (sections have a `key` field, `None` when they're in the song's). A `{chorus}` reference given a key is written out in full, as a copy of the last chorus before it with the reference's label, since a bare reference shows no chords to play. `transpose_song` moves keyed sections along with the song, so the two can be applied in either order, and `shift_key(key, semitones)` gives the key a number of semitones away (`shift_key("G", 2)` → `"A"`).
+
+Renderers show a keyed section's key after its label (`Chorus – A`, and `data-key` and `cp-section-key` in HTML) and, given a `notation`, name its chords for its key.
 
 ### PDF rendering
 

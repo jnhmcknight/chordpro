@@ -43,9 +43,12 @@ class HtmlRenderer(BaseRenderer):
         header = self._render_header(song.meta)
         if header:
             parts.append(header)
+        semi_to_name = self._song_names(song, semi_to_name)
         for item in song.body:
             if hasattr(item, "lines"):
-                parts.append(self._render_section(item, semi_to_name))
+                parts.append(
+                    self._render_section(item, self._section_names(item, semi_to_name))
+                )
             else:
                 rendered = self._render_line(item, semi_to_name)
                 if rendered:
@@ -202,9 +205,21 @@ class HtmlRenderer(BaseRenderer):
         return ""
 
     def _render_section(self, section, semi_to_name: dict | None) -> str:
+        # A section in a key of its own says which, for the page (data-key,
+        # the key's standard name) and to read (after its label)
+        key = getattr(section, "key", None)
+        key_attr = f' data-key="{_html.escape(key)}"' if key else ""
+        label_html = _html.escape(section.label)
+        if key:
+            key_html = (
+                f'<span class="cp-section-key">'
+                f"{_html.escape(self._section_key(section) or key)}</span>"
+            )
+            label_html = f"{label_html} – {key_html}" if label_html else key_html
         parts = [
-            f'<div class="cp-section" data-section="{_html.escape(section.kind)}">',
-            f'<div class="cp-section-label">{_html.escape(section.label)}</div>',
+            f'<div class="cp-section" data-section="{_html.escape(section.kind)}"'
+            f"{key_attr}>",
+            f'<div class="cp-section-label">{label_html}</div>',
         ]
         for line in section.lines:
             parts.append(self._render_line(line, semi_to_name))

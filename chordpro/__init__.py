@@ -106,10 +106,15 @@ from .models import (
 )
 from .parser import (
     build_chord_semi_to_name,
+    build_key_semi_to_name,
     build_nashville_semi_to_name,
     build_transposed_semi_to_name,
+    format_key,
     key_to_semitone,
     parse,
+    shift_key,
+    song_parts,
+    transpose_parts,
     transpose_song,
 )
 from .renderers import (
@@ -133,7 +138,12 @@ __all__ = [
     "build_chord_semi_to_name",
     "build_nashville_semi_to_name",
     "build_transposed_semi_to_name",
+    "build_key_semi_to_name",
+    "format_key",
     "key_to_semitone",
+    "shift_key",
+    "song_parts",
+    "transpose_parts",
     "transpose_song",
     # Renderer
     "BaseRenderer",

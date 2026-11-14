@@ -27,11 +27,12 @@ class QuillDeltaRenderer(BaseRenderer):
     def render(self, song: Song, semi_to_name: dict | None = None) -> dict:
         ops: list[dict] = []
         self._render_header(ops, song.meta)
+        names = self._song_names(song, semi_to_name)
         for item in song.body:
             if hasattr(item, "lines"):
-                self._render_section(ops, item, semi_to_name)
+                self._render_section(ops, item, self._section_names(item, names))
             else:
-                self._render_line(ops, item, semi_to_name)
+                self._render_line(ops, item, names)
         self._render_footer(ops, song.meta)
         return {"ops": ops}
 
@@ -46,11 +47,12 @@ class QuillDeltaRenderer(BaseRenderer):
             if i > 0:
                 self._insert(ops, "\n", page_break=True)
             self._render_header(ops, song.meta)
+            names = self._song_names(song, semi_to_name)
             for item in song.body:
                 if hasattr(item, "lines"):
-                    self._render_section(ops, item, semi_to_name)
+                    self._render_section(ops, item, self._section_names(item, names))
                 else:
-                    self._render_line(ops, item, semi_to_name)
+                    self._render_line(ops, item, names)
             self._render_footer(ops, song.meta)
         return {"ops": ops}
 
@@ -93,8 +95,9 @@ class QuillDeltaRenderer(BaseRenderer):
         ops.append(op)
 
     def _render_section(self, ops: list, section, semi_to_name: dict | None) -> None:
-        if section.label:
-            self._insert(ops, section.label, bold=True)
+        label = self._section_label(section)
+        if label:
+            self._insert(ops, label, bold=True)
             self._insert(ops, "\n")
         for line in section.lines:
             self._render_line(ops, line, semi_to_name)

@@ -547,6 +547,7 @@ class PdfRenderer(BaseRenderer):
         from reportlab.platypus import Paragraph, Spacer
 
         story = []
+        semi_to_name = self._song_names(song, semi_to_name)
 
         # --- Metadata header ---
         # Left column: title, subtitle, artist, album, composer
@@ -661,7 +662,7 @@ class PdfRenderer(BaseRenderer):
                 self._append_section(
                     story,
                     item,
-                    semi_to_name,
+                    self._section_names(item, semi_to_name),
                     styles["section_label"],
                     styles["lyric"],
                     styles["comment"],
@@ -751,10 +752,9 @@ class PdfRenderer(BaseRenderer):
         from reportlab.platypus import KeepTogether, Paragraph
 
         section_flowables = []
-        if section.label:
-            section_flowables.append(
-                Paragraph(self._esc(section.label), section_label_style)
-            )
+        label = self._section_label(section)
+        if label:
+            section_flowables.append(Paragraph(self._esc(label), section_label_style))
         for line in section.lines:
             flowable = self._line_to_flowable(
                 line,

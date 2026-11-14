@@ -7,13 +7,7 @@ from flask.cli import AppGroup
 from ..cli import convert
 from ..constants import KEY_NAMES
 from ..models import SongMeta
-from ..parser import (
-    _key_prefers_flats,
-    build_chord_semi_to_name,
-    build_nashville_semi_to_name,
-    key_to_semitone,
-    parse,
-)
+from ..parser import build_key_semi_to_name, format_key, parse
 from ..renderers import BaseRenderer, render
 
 
@@ -59,19 +53,10 @@ class ChordPro:
             song = parse(content)
             if meta is not None:
                 _supplement_meta(song.meta, meta)
-            if notation == "nashville":
-                key_str = getattr(g, "key", None) or (
-                    song.meta.key[0] if song.meta.key else "C"
-                )
-                semi_to_name = build_nashville_semi_to_name(key_to_semitone(key_str))
-            else:
-                key_str = getattr(g, "key", None) or (
-                    song.meta.key[0] if song.meta.key else None
-                )
-                prefer_flats = _key_prefers_flats(key_str) if key_str else False
-                semi_to_name = build_chord_semi_to_name(
-                    notation, prefer_flats=prefer_flats
-                )
+            key_str = getattr(g, "key", None) or (
+                song.meta.key[0] if song.meta.key else None
+            )
+            semi_to_name = build_key_semi_to_name(notation, key_str)
             if isinstance(format, BaseRenderer):
                 return format.render(song, semi_to_name)
             return render(song, semi_to_name, format=format)
@@ -83,17 +68,7 @@ class ChordPro:
             notation = getattr(g, "notation", "standard")
             # String key path (new model)
             if isinstance(key, str):
-                if notation == "standard":
-                    return key
-                # Convert from standard string to the requested notation
-                std_table = KEY_NAMES["standard"]
-                target_table = KEY_NAMES.get(notation, KEY_NAMES["standard"])
-                is_minor = key.endswith("m")
-                side = "minor" if is_minor else "major"
-                for idx, name in std_table[side].items():
-                    if name == key:
-                        return target_table[side][idx]
-                return key  # unrecognised — return as-is
+                return format_key(key, notation)
             # Legacy integer key path (kept for backward compatibility)
             try:
                 table = KEY_NAMES.get(notation, KEY_NAMES["standard"])

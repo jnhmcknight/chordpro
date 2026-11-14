@@ -226,15 +226,17 @@ Line = Union[
 # Section types
 # ---------------------------------------------------------------------------
 # Each named section has a read-only ``kind`` property that matches the
-# canonical ChordPro directive suffix.  The generic ``Section`` class covers
-# any unrecognised ``{start_of_*}`` directive and stores ``kind`` as a plain
-# instance field.
+# canonical ChordPro directive suffix, and a ``key``: the key the section is
+# played in when it isn't the song's (see ``transpose_parts``), else ``None``.
+# The generic ``Section`` class covers any unrecognised ``{start_of_*}``
+# directive and stores ``kind`` as a plain instance field.
 
 
 @dataclass
 class Verse:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -245,6 +247,7 @@ class Verse:
 class Chorus:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -255,6 +258,7 @@ class Chorus:
 class Bridge:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -265,6 +269,7 @@ class Bridge:
 class PreChorus:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -275,6 +280,7 @@ class PreChorus:
 class Outro:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -285,6 +291,7 @@ class Outro:
 class Intro:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -295,6 +302,7 @@ class Intro:
 class Tab:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -305,6 +313,7 @@ class Tab:
 class Grid:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -315,6 +324,7 @@ class Grid:
 class Tag:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -325,6 +335,7 @@ class Tag:
 class Interlude:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -335,6 +346,7 @@ class Interlude:
 class Solo:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -345,6 +357,7 @@ class Solo:
 class Instrumental:
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -357,6 +370,7 @@ class Abc:
 
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -369,6 +383,7 @@ class Lilypond:
 
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -381,6 +396,7 @@ class Svg:
 
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -393,6 +409,7 @@ class TextBlock:
 
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
     @property
     def kind(self) -> str:
@@ -406,6 +423,7 @@ class Section:
     kind: str
     label: str
     lines: list[Line] = field(default_factory=list)
+    key: str | None = None
 
 
 SongSection = Union[

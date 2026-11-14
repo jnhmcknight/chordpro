@@ -91,6 +91,7 @@ def render(
     format: str = "html",
     ascii_accidentals: bool | None = None,
     key: str | None = None,
+    notation: str | None = None,
 ) -> Any:
     """Render *song* using the named *format*.
 
@@ -101,6 +102,10 @@ def render(
     (``True``) or the proper Unicode symbols ``♯``/``♭`` (``False``).  Pass
     ``None`` (the default) to use the renderer's own default — currently
     ``True`` for ``TextRenderer`` and ``False`` for all others.
+
+    *notation* (``"standard"``, ``"nashville"``, ``"german"``, ``"latin"``)
+    has the renderer name the chords itself, for the song's key and each
+    section's own (see ``BaseRenderer``), instead of using *semi_to_name*.
 
     Raises ``ValueError`` for unknown format names.
     """
@@ -113,7 +118,7 @@ def render(
         raise ValueError(
             f"Unknown format {format!r}. Registered formats: {registered}"
         ) from None
-    return renderer_cls._make(ascii_accidentals).render(song, semi_to_name)
+    return renderer_cls._make(ascii_accidentals, notation).render(song, semi_to_name)
 
 
 def render_many(
@@ -122,6 +127,7 @@ def render_many(
     format: str = "html",
     ascii_accidentals: bool | None = None,
     key: str | None = None,
+    notation: str | None = None,
 ) -> Any:
     """Render multiple *songs* as a single combined output using *format*.
 
@@ -136,7 +142,9 @@ def render_many(
     renderers that do not override ``render_many()`` receive a list of
     individual ``render()`` results.
 
-    *ascii_accidentals* behaves as in ``render()``.
+    *ascii_accidentals* and *notation* behave as in ``render()``: with a
+    *notation*, each song's chords are named for its own key, which a single
+    *semi_to_name* can't do in Nashville notation.
 
     Raises ``ValueError`` for unknown format names.
     """
@@ -149,7 +157,9 @@ def render_many(
         raise ValueError(
             f"Unknown format {format!r}. Registered formats: {registered}"
         ) from None
-    return renderer_cls._make(ascii_accidentals).render_many(songs, semi_to_name)
+    return renderer_cls._make(ascii_accidentals, notation).render_many(
+        songs, semi_to_name
+    )
 
 
 # ---------------------------------------------------------------------------
