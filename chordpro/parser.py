@@ -65,6 +65,7 @@ from .models import (
 )
 
 __all__ = [
+    "apply_transpose_directives",
     "parse",
     "build_chord_semi_to_name",
     "build_nashville_semi_to_name",
@@ -324,6 +325,81 @@ def transpose_parts(song: Song, keys: dict[int, str]) -> Song:
             )
         body.append(_transpose_section(item, item.key or song_key, key))
     return dataclasses.replace(song, body=body)
+
+
+def apply_transpose_directives(song: Song) -> Song:
+    """Return a new ``Song`` played as its ``{transpose: N}`` directives say.
+
+    Each directive moves the chords after it *N* semitones from where they
+    are written, until the next one; a bare ``{transpose}`` puts them back.
+    The directives are taken out of the copy.  One given before the song's
+    first chord moves the whole song, and its ``meta.key`` with it.  A section
+    begun at any other offset is played in a key of its own, and its ``key``
+    is set (see ``transpose_parts``), when the song has a key to count from.
+
+    Chords are spelled for the key they land in; in a song with no key, as
+    the ChordPro specification has it, with sharps going up and flats going
+    down.  A song with no directives is returned as it is.  Apply this to a
+    song as it was parsed, before ``transpose_song`` or ``transpose_parts``.
+    """
+    lines = [
+        line
+        for item in song.body
+        for line in (item.lines if hasattr(item, "lines") else [item])
+    ]
+    if not any(isinstance(line, Transpose) for line in lines):
+        return song
+
+    opening = 0
+    for line in lines:
+        if isinstance(line, Transpose):
+            opening = line.semitones or 0
+        elif isinstance(line, ChordLine) and any(s.chord for s in line.segments):
+            break
+
+    written_key = song.meta.key[0] if song.meta.key else None
+    offset = 0
+
+    def played(items: list) -> list:
+        nonlocal offset
+        kept = []
+        for line in items:
+            if isinstance(line, Transpose):
+                offset = line.semitones or 0
+            else:
+                kept.append(_transpose_line(line, _offset_map(offset, written_key)))
+        return kept
+
+    body = []
+    for item in song.body:
+        if not hasattr(item, "lines"):
+            body.extend(played([item]))
+            continue
+        own_key = (
+            shift_key(written_key, offset)
+            if written_key and offset != opening
+            else item.key
+        )
+        body.append(dataclasses.replace(item, lines=played(item.lines), key=own_key))
+
+    meta = song.meta
+    if written_key and opening:
+        meta = dataclasses.replace(
+            meta, key=[shift_key(written_key, opening), *meta.key[1:]]
+        )
+    return dataclasses.replace(song, meta=meta, body=body)
+
+
+def _offset_map(offset: int, written_key: str | None) -> dict[int, str]:
+    """A semitone → standard root name map that moves each note *offset*
+    semitones, spelled as ``apply_transpose_directives`` says."""
+    prefer_flats = (
+        _key_prefers_flats(shift_key(written_key, offset))
+        if written_key
+        else offset < 0
+    )
+    names = build_chord_semi_to_name("standard", prefer_flats=prefer_flats)
+    return {s: names[(s + offset) % 12] for s in range(12)}
 
 
 def build_nashville_semi_to_name(key_semitone: int) -> dict[int, str]:

@@ -65,6 +65,7 @@ Converts a ChordPro string to the requested format. Chord roots are translated t
 {{ song.content | chordpro("text") }}          {# plain text #}
 {{ song.content | chordpro("quill-delta") }}   {# Quill Delta dict #}
 {{ song.content | chordpro("pdf") }}           {# PDF bytes (requires chordpro[pdf]) #}
+{{ song.content | chordpro(transpose_directives=True) }}   {# played as its {transpose} directives say #}
 ```
 
 **Example input:**
@@ -438,6 +439,10 @@ html = render(song, notation="standard")
 The part's chords are transposed from the key it was in to its new key and spelled for it, and its `key` is set (sections have a `key` field, `None` when they're in the song's). A `{chorus}` reference given a key is written out in full, as a copy of the last chorus before it with the reference's label, since a bare reference shows no chords to play. `transpose_song` moves keyed sections along with the song, so the two can be applied in either order, and `shift_key(key, semitones)` gives the key a number of semitones away (`shift_key("G", 2)` → `"A"`).
 
 Renderers show a keyed section's key after its label (`Chorus – A`, and `data-key` and `cp-section-key` in HTML) and, given a `notation`, name its chords for its key.
+
+### The `{transpose}` directive
+
+Renderers leave `{transpose: N}` alone unless asked. `apply_transpose_directives(song)` returns the song as the directives play it: each moves the chords after it *N* semitones from where they are written, until the next one, and a bare `{transpose}` puts them back. One before the first chord moves the whole song and its key; a section begun at another offset gets a `key` of its own (see above). Chords are spelled for the key they land in or, in a song with no key, with sharps going up and flats going down.
 
 ### PDF rendering
 

@@ -105,6 +105,7 @@ from .models import (
     Song,
 )
 from .parser import (
+    apply_transpose_directives,
     build_chord_semi_to_name,
     build_key_semi_to_name,
     build_nashville_semi_to_name,
@@ -142,6 +143,7 @@ __all__ = [
     "format_key",
     "key_to_semitone",
     "shift_key",
+    "apply_transpose_directives",
     "song_parts",
     "transpose_parts",
     "transpose_song",
