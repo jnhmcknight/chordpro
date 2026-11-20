@@ -7,7 +7,12 @@ from flask.cli import AppGroup
 from ..cli import convert
 from ..constants import KEY_NAMES
 from ..models import SongMeta
-from ..parser import build_key_semi_to_name, format_key, parse
+from ..parser import (
+    apply_transpose_directives,
+    build_key_semi_to_name,
+    format_key,
+    parse,
+)
 from ..renderers import BaseRenderer, render
 
 
@@ -46,6 +51,7 @@ class ChordPro:
             content: str,
             format: t.Literal["html", "text", "pdf", "quill-delta"] = "html",
             meta: t.Optional[SongMeta] = None,
+            transpose_directives: bool = False,
         ):
             if not content:
                 return ""
@@ -53,6 +59,16 @@ class ChordPro:
             song = parse(content)
             if meta is not None:
                 _supplement_meta(song.meta, meta)
+            if transpose_directives:
+                played = apply_transpose_directives(song)
+                if played is not song and not isinstance(format, BaseRenderer):
+                    # Already spelled for the keys they moved to; other
+                    # notations are named for each of those keys
+                    return render(
+                        played,
+                        format=format,
+                        notation=None if notation == "standard" else notation,
+                    )
             key_str = getattr(g, "key", None) or (
                 song.meta.key[0] if song.meta.key else None
             )
