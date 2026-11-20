@@ -56,6 +56,45 @@ class TestBuildChordSemiToName:
     def test_latin_c_is_do(self):
         assert build_chord_semi_to_name("latin")[0] == "Do"
 
+    def test_without_a_preference_each_notations_usual_names(self):
+        # As they were before prefer_flats applied to them
+        assert [build_chord_semi_to_name("german")[s] for s in (1, 3, 8, 10)] == [
+            "Cis",
+            "Dis",
+            "As",
+            "B",
+        ]
+        assert build_chord_semi_to_name("standard")[10] == "A♯"
+
+    @pytest.mark.parametrize(
+        "notation, flats, sharps",
+        [
+            (
+                "german",
+                ["Des", "Es", "Ges", "As", "B"],
+                ["Cis", "Dis", "Fis", "Gis", "Ais"],
+            ),
+            (
+                "latin",
+                ["Re♭", "Mi♭", "Sol♭", "La♭", "Si♭"],
+                ["Do♯", "Re♯", "Fa♯", "Sol♯", "La♯"],
+            ),
+            (
+                "standard",
+                ["D♭", "E♭", "G♭", "A♭", "B♭"],
+                ["C♯", "D♯", "F♯", "G♯", "A♯"],
+            ),
+        ],
+    )
+    def test_prefer_flats_in_every_notation(self, notation, flats, sharps):
+        chromatic = (1, 3, 6, 8, 10)
+        names = build_chord_semi_to_name(notation, prefer_flats=True)
+        assert [names[s] for s in chromatic] == flats
+        names = build_chord_semi_to_name(notation, prefer_flats=False)
+        assert [names[s] for s in chromatic] == sharps
+        # The natural notes as ever
+        assert names[11] == {"german": "H", "latin": "Si", "standard": "B"}[notation]
+
 
 # ---------------------------------------------------------------------------
 # _convert_chord_root

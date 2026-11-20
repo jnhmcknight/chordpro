@@ -224,6 +224,19 @@ class TestKeyHelpers:
         assert build_key_semi_to_name("standard", "F")[10] == "B♭"
         assert build_key_semi_to_name("standard", "E")[10] == "A♯"
 
+    def test_build_key_semi_to_name_german_and_latin_prefer_them_too(self):
+        # G♯ in A major, A♭ in E♭ major; B♭ in F, A♯ in E
+        assert build_key_semi_to_name("german", "A")[8] == "Gis"
+        assert build_key_semi_to_name("german", "E♭")[8] == "As"
+        assert build_key_semi_to_name("german", "F")[10] == "B"
+        assert build_key_semi_to_name("german", "E")[10] == "Ais"
+        assert build_key_semi_to_name("latin", "A")[8] == "Sol♯"
+        assert build_key_semi_to_name("latin", "Cm")[3] == "Mi♭"
+
+    def test_build_key_semi_to_name_without_key_is_each_notations_usual_names(self):
+        assert build_key_semi_to_name("german", None)[8] == "As"
+        assert build_key_semi_to_name("standard", None)[10] == "A♯"
+
     @pytest.mark.parametrize(
         "key, notation, expected",
         [
@@ -275,6 +288,23 @@ class TestHtmlSectionKey:
         html = render(keyed_song(), notation="latin")
         assert 'data-key="A"' in html
         assert '<span class="cp-section-key">La</span>' in html
+
+    def test_chords_named_with_each_keys_accidentals_in_notation(self):
+        song = Song(
+            meta=SongMeta(key=["A"]),
+            body=[
+                Verse(label="Verse", lines=[ChordLine([Segment("E/G#", "One")])]),
+                Chorus(
+                    label="Chorus",
+                    lines=[ChordLine([Segment("Ab", "Two")])],
+                    key="E♭",
+                ),
+            ],
+        )
+        html = render(song, notation="german")
+        # G♯ in A; A♭ in the chorus's E♭
+        assert ">E/Gis</span>" in html
+        assert ">As</span>" in html
 
     def test_keyed_section_without_label(self):
         song = Song(body=[Chorus(label="", key="D")])

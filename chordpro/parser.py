@@ -17,6 +17,7 @@ from .constants import (
     _CP_SECTION_LABELS,
     _FLAT_PREFERENCE_KEYS,
     _FLAT_SEMI_TO_NAME,
+    _NOTATION_NOTE_NAMES,
     _NASHVILLE_CHROMATIC,
     _SHARP_SEMI_TO_NAME,
     _SHORT_FORM_DIRECTIVES,
@@ -121,19 +122,25 @@ _META_LIST: frozenset[str] = frozenset(
 
 
 def build_chord_semi_to_name(
-    notation: str, prefer_flats: bool = False
+    notation: str, prefer_flats: bool | None = None
 ) -> dict[int, str]:
     """Return a dict mapping chromatic semitone → chord root name.
 
     Falls back to ``"standard"`` for unknown notations.
 
-    For ``"standard"`` notation, *prefer_flats* selects flat accidentals
-    (D♭, E♭, G♭, A♭, B♭) over sharp ones (C♯, D♯, F♯, G♯, A♯) for
-    chromatic (non-diatonic) semitones.  Use ``_key_prefers_flats()`` to
-    derive the right value from a key string.
+    *prefer_flats* selects flat accidentals (D♭, E♭, G♭, A♭, B♭; in German
+    Des, Es, Ges, As, B) over sharp ones (C♯, D♯, F♯, G♯, A♯; Cis, Dis,
+    Fis, Gis, Ais) for chromatic (non-diatonic) semitones, in every
+    notation.  Use ``_key_prefers_flats()`` to derive the right value from
+    a key string.  Without it, standard names use sharps, and German and
+    Latin each note's usual name, whatever the key (B♭ is B, G♯ is As).
     """
     if notation == "standard" or notation not in KEY_NAMES:
         return dict(_FLAT_SEMI_TO_NAME if prefer_flats else _SHARP_SEMI_TO_NAME)
+    if prefer_flats is not None:
+        names = _NOTATION_NOTE_NAMES[notation]
+        standard = _FLAT_SEMI_TO_NAME if prefer_flats else _SHARP_SEMI_TO_NAME
+        return {semi: names[name] for semi, name in standard.items()}
     table = KEY_NAMES[notation]["major"]
     return {(key_int + 9) % 12: name for key_int, name in table.items()}
 
@@ -422,13 +429,15 @@ def build_key_semi_to_name(notation: str, key: str | None) -> dict[int, str]:
     """Return the semitone → chord-name map for chords in *key*, in *notation*.
 
     In Nashville notation, numbers from the key's root (C when there is no
-    key); in standard notation, the flats or sharps the key prefers; in the
-    other notations, their own names.  Renderers given a ``notation`` build
+    key); in the others, the flats or sharps the key prefers (``F♯`` and
+    ``Fis`` in G, ``B♭`` and ``B`` in F).  Without a key, standard names use
+    sharps, and German and Latin each note's usual name (see
+    ``build_chord_semi_to_name``).  Renderers given a ``notation`` build
     each song's and each keyed section's names with this.
     """
     if notation == "nashville":
         return build_nashville_semi_to_name(key_to_semitone(key or "C"))
-    prefer_flats = _key_prefers_flats(key) if key else False
+    prefer_flats = _key_prefers_flats(key) if key else None
     return build_chord_semi_to_name(notation, prefer_flats=prefer_flats)
 
 

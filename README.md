@@ -152,6 +152,12 @@ If `g.notation` is not set, `"standard"` is used.
 | `"latin"` | Solfège (Do Re Mi…) | Do |
 | `"nashville"` | Nashville Number System (relative to key) | 1 |
 
+In a song with a key, chords outside it are named with the flats or sharps
+the key prefers, in every notation: G♯ in A major is G♯, Gis or Sol♯, and A♭
+in E♭ major is A♭, As or La♭ (`build_key_semi_to_name`). Without a key,
+standard names use sharps, and German and Latin each note's usual name (B♭
+is B, G♯ is As).
+
 ### Nashville notation
 
 When `g.notation` is `"nashville"`, the filter also reads `g.key` to determine the root. If `g.key` is not set, the song's first `{key:}` metadata value is used, falling back to `"C"`.

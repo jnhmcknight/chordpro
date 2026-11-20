@@ -121,6 +121,50 @@ _FLAT_SEMI_TO_NAME: dict[int, str] = {
     11: "B",
 }
 
+# Each notation's name for a standard note name, flats and sharps alike, for
+# naming chords with the accidentals a key prefers (standard names are their
+# own; Nashville numbers are counted from a key, see _NASHVILLE_CHROMATIC).
+_NOTATION_NOTE_NAMES: dict[str, dict[str, str]] = {
+    "german": {
+        "C": "C",
+        "C♯": "Cis",
+        "D♭": "Des",
+        "D": "D",
+        "D♯": "Dis",
+        "E♭": "Es",
+        "E": "E",
+        "F": "F",
+        "F♯": "Fis",
+        "G♭": "Ges",
+        "G": "G",
+        "G♯": "Gis",
+        "A♭": "As",
+        "A": "A",
+        "A♯": "Ais",
+        "B♭": "B",
+        "B": "H",
+    },
+    "latin": {
+        "C": "Do",
+        "C♯": "Do♯",
+        "D♭": "Re♭",
+        "D": "Re",
+        "D♯": "Re♯",
+        "E♭": "Mi♭",
+        "E": "Mi",
+        "F": "Fa",
+        "F♯": "Fa♯",
+        "G♭": "Sol♭",
+        "G": "Sol",
+        "G♯": "Sol♯",
+        "A♭": "La♭",
+        "A": "La",
+        "A♯": "La♯",
+        "B♭": "Si♭",
+        "B": "Si",
+    },
+}
+
 # Keys (by root name) whose chromatic chords should use flat accidentals.
 # Major flat keys: F, B♭, E♭, A♭, D♭, G♭, C♭
 # Their relative minors: Dm, Gm, Cm, Fm, B♭m, E♭m, A♭m
